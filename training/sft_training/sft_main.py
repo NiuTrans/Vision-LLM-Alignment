@@ -429,7 +429,7 @@ def main():
             
             acc_loss += loss
             acc_loss = get_all_reduce_mean(acc_loss).item()
-            print_rank_0(f'Epoch {epoch+1}, Step: {step}, Loss:{acc_loss/step}', args.global_rank)
+            print_rank_0(f'Epoch {epoch+1}, Step: {step}, Loss:{acc_loss/(step+1)}', args.global_rank)
 
             global_step += 1
 
