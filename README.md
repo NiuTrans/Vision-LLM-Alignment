@@ -17,7 +17,7 @@ Its architecture is depicted in the [figure](https://github.com/microsoft/DeepSp
 
 ### Datasets
 We have tentatively implemented all alignment training based on this LLaVA dataset format. 
-Some samples can be found in the [data folder](**).
+Some samples can be found in the [data folder](https://github.com/wangclnlp/Vision-LLM-Alignment/tree/master/data).
 
 ## Training Models
 ### Supervised Fine-tuning (SFT)
@@ -56,7 +56,7 @@ deepspeed --include localhost:${DEVICE} --master_port 12345 training/sft_trainin
 # Please refer to the run_rm_training.sh script for an example.
 
 deepspeed --include localhost:$DEVICE --master_port 12345 training/reward_model_training/rm_training_main.py \
-    --max_seq_len ${SEQ_LEN} \
+     --max_seq_len ${SEQ_LEN} \
     --data_path ${DATA_PATH} \
     --eval_data_path ${EVAL_DATA_PATH} \
     --image_folder ${IMAGE_FOLDER} \
@@ -147,7 +147,7 @@ deepspeed --include localhost:$DEVICE --master_port 12345 training/ppo_training/
     --critic_zero_stage $critic_zero_stage \
     --image_folder ${IMAGE_FOLDER} \
     --actor_learning_rate $ACTOR_LEARNING_RATE \
-    --critic_learning_rate $CRITIC_LEARNING_RATE  > $OUTPUT/training.log &
+    --critic_learning_rate $CRITIC_LEARNING_RATE 
 ```
 ### Evaluation
 ```Shell
