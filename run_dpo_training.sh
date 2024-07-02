@@ -17,7 +17,7 @@ IMAGE_FOLDER=data/coco_2017/
 
 EPOCH=3
 ZERO_STAGE=2
-lr=1e-3
+lr=1e-5
 
 DATA_PATH=data/reward_samples.json
 CANDIDATE_NUM=2
@@ -35,6 +35,7 @@ fi
 mkdir -p $OUTPUT
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
+# Note: when training with multiple candidate outputs, you should employ the training/dpo_training/multi_candidate_dpo_training_main.py
 
 deepspeed --include localhost:0 --master_port 12348 training/dpo_training/dpo_training_main.py --max_seq_len 2048 \
     --data_path ${DATA_PATH} --image_folder ${IMAGE_FOLDER} --template ${TEMPLATE} \

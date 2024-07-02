@@ -10,7 +10,7 @@ You can use anaconda/miniconda to install packages needed for this project.
 pip install -r requirements.txt
 ```
 
-## Prepare Models and Datasets
+## Preparing Models and Datasets
 ### Models
 Vision-LLM requires both a vision encoder and a language model.
 Its architecture is depicted in the [figure](https://github.com/microsoft/DeepSpeedExamples/blob/master/applications/DeepSpeed-VisualChat/assets/model.png).

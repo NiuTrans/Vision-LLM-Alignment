@@ -60,8 +60,6 @@ def parse_args():
                         type=float,
                         default=0.0,
                         help="conservativeness for DPO loss, which assumes that preferences are noisy (flipped with probability label_smoothing)"
-
-
     )
     parser.add_argument('--dataset_names',
                         nargs='*',
@@ -248,7 +246,7 @@ def parse_args():
     return args
 
 def gather_log_probs(logits, labels, label_mask):
-    label_mask_new = (label_mask.clone() != DST.DEFAULT_LABEL_PADDING_NUM).int()[:,0:-1]
+    label_mask_new = (label_mask.clone() != DST.DEFAULT_LABEL_PADDING_NUM).int()[:,1:]
     log_probs = F.log_softmax(logits, dim=-1)
     log_probs_labels = log_probs.gather(dim=-1, index=labels.unsqueeze(-1))
 
@@ -443,6 +441,7 @@ def main():
             args.global_rank)
         model.train()
         dpo_training_loss = 0
+        global_step = 0
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
@@ -469,28 +468,34 @@ def main():
             logprobs = gather_log_probs(outputs_logits[:, :-1, :], input_ids[:, 1:], labels)
             ref_logprobs = gather_log_probs(ref_outputs_logits[:, :-1, :], input_ids[:,1:], labels)
             
-            # check data
-            assert logprobs.shape[0] == args.per_device_train_batch_size * 2, \
-                "check the number of the candidate, dpo only support two, chosen and rejected !!!"
+            if logprobs.shape[0] != args.per_device_train_batch_size * 2:
+                print("check the number of the candidate, this dpo training only supports two, chosen and rejected !!!")
+                outputs_logits = outputs_logits.detach()
+                continue
+            
+            sample_num = len(logprobs) // 2
+            loss = 0
+            for batch_index in range(sample_num):
+                chosen_logps = logprobs[batch_index*2]
+                rejected_logps = logprobs[batch_index*2 + 1]
 
-            chosen_logps = logprobs[::2]
-            rejected_logps = logprobs[1::2]
+                ref_chosen_logps = ref_logprobs[batch_index*2]
+                ref_rejected_logps = ref_logprobs[batch_index*2 + 1]
 
-            ref_chosen_logps = ref_logprobs[::2]
-            ref_rejected_logps = ref_logprobs[1::2]
-
-            #compute loss
-            logits = args.beta * ((chosen_logps-ref_chosen_logps)-(rejected_logps-ref_rejected_logps))
-            loss = (-torch.nn.functional.logsigmoid(logits) * (1 - args.label_smoothing) - \
-                        torch.nn.functional.logsigmoid(-logits) * args.label_smoothing).mean(0)
-
+                #compute loss
+                logits = args.beta * ((chosen_logps-ref_chosen_logps)-(rejected_logps-ref_rejected_logps))
+                loss += (-torch.nn.functional.logsigmoid(logits) * (1 - args.label_smoothing) - \
+                            torch.nn.functional.logsigmoid(-logits) * args.label_smoothing)
+            
+            loss = loss/sample_num 
             model.backward(loss)
             model.step()
 
             dpo_training_loss += loss
-            dpo_training_loss = get_all_reduce_mean(dpo_training_loss).item()
 
-            print_rank_0(f'Epoch {epoch+1}, Step: {(step+1)}, Loss:{dpo_training_loss/(step+1)}', args.global_rank)
+            dpo_training_loss = get_all_reduce_mean(dpo_training_loss).item()
+            global_step += 1
+            print_rank_0(f'Epoch {epoch}, Step: {(step)}, Loss:{dpo_training_loss/global_step}', args.global_rank)
         
         model = fuse_lora(model)
         if args.global_rank == 0:

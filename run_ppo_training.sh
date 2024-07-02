@@ -22,12 +22,10 @@ MAX_GENERATION_LANGTH_OF_SAMPLING=384
 actor_zero_stage=2
 critic_zero_stage=3
 
-ACTOR_LEARNING_RATE=3e-5
-CRITIC_LEARNING_RATE=3e-6
+ACTOR_LEARNING_RATE=1e-5
+CRITIC_LEARNING_RATE=2e-5
 
 EPOCH=3
-ZERO_STAGE=2
-lr=1e-3
 
 IMAGE_FOLDER=data/coco_2017/
 DATA_PATH=data/ppo_samples.json
@@ -38,10 +36,6 @@ DATA_SAMPLE="all"
 IMAGE_PER_SAMPLE="1"
 
 OUTPUT=models/ppo_test
-
-if [ "$ZERO_STAGE" == "" ]; then
-    ZERO_STAGE=0
-fi
 
 mkdir -p $OUTPUT
 

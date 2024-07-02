@@ -295,7 +295,7 @@ def main():
         with open(args.output_path, "a") as trg:
             for i in range(args.batch_size):       
                 # from training.utils.pdb import pdb; pdb.set_trace() 
-                id = batch['id'][0]
+                id = str(batch['id'][0])
                 ref_image = reference_dict[id]['image'] if reference_dict[id]['image'] is not None else "None"
                 ref_label = reference_dict[id]['label'] if 'label' in reference_dict[id].keys() else "None"
                 line = " ||| ".join([ref_image.strip(), 
