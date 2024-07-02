@@ -35,6 +35,7 @@ fi
 mkdir -p $OUTPUT
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
+
 deepspeed --include localhost:0 --master_port 12348 training/dpo_training/dpo_training_main.py --max_seq_len 2048 \
     --data_path ${DATA_PATH} --image_folder ${IMAGE_FOLDER} --template ${TEMPLATE} \
     --dataset_names ${DATA} --dataset_samples ${DATA_SAMPLE} --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} --max_num_image_per_sample 8 \

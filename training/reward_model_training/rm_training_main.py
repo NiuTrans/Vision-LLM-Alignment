@@ -228,10 +228,19 @@ def parse_args():
                         type=int,
                         default=2,
                         help="Total number of candidate LLMs.")
-
     parser.add_argument('--template',
                     type=str,
                     choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+    parser.add_argument(
+        '--from_checnkpoint',
+        type=str,
+        default="./basemodel/",
+        help='Specifying the checkpoint directory to be loaded.')
+    parser.add_argument(
+        '--eval_step',
+        type=int,
+        default=100,
+        help='The evaluation will be conducted every specific number of training steps.')
 
 
     parser = deepspeed.add_config_arguments(parser)
@@ -274,7 +283,6 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.lm_reward_model_name_or_path,
                                               fast_tokenizer=True)
 
-
     tokenizer.padding_side = 'right'
 
     model, image_processor, tokenizer = create_reward_or_critic_model(
@@ -283,6 +291,12 @@ def main():
             is_reward=True,
             is_load_from_ckpt=False,
             args=args)
+        
+    # let load checkpoint 
+    if os.path.exists(os.path.join(args.from_checnkpoint, 'latest')):
+        # we have the deepspeed chekpoint so it is a resumed job
+        print_rank_0(f"load checkpoint from {args.from_checnkpoint}")
+        _, client_state = model.load_checkpoint(args.from_checnkpoint)
     
     tokenizer.add_bos_token = True
     tokenizer.add_eos_token = True
@@ -442,9 +456,8 @@ def main():
             acc_rate = get_all_reduce_mean(acc_rate).item()
         except:
             pass
-        reward_scores = reward_scores.tolist()
         print_rank_0(
-            f"Eval accuracy: {acc_rate}, Avg of Reward Scores: {sum(reward_scores)/len(reward_scores)}", 
+            f"Eval accuracy: {acc_rate}, Avg of Reward Scores: {acc_rate}", 
             args.global_rank)
         return acc_rate
     
@@ -453,8 +466,6 @@ def main():
         print_rank_0("***** Before training *****", args.global_rank)
         evaluation(model, eval_dataloader)
 
-    evaluation(model, eval_dataloader=eval_dataloader)
-
     print_rank_0("***** Running training *****", args.global_rank)
     for epoch in range(start_epoch, args.num_train_epochs):
         print_rank_0(
@@ -462,6 +473,8 @@ def main():
             args.global_rank)
         acc_loss = 0
         model.train()
+
+        global_step = 0
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
@@ -516,6 +529,11 @@ def main():
                 f'Epoch {epoch+1}, Step: {(step+1)}, Loss: {acc_loss/(step+1)}, '+ \
                 f'Accuracy: {sum(all_comparison_judgement)/len(all_comparison_judgement)}',
                 args.global_rank)
+            
+            global_step += 1
+            if global_step % args.eval_step == 0:
+                evaluation(model, eval_dataloader)
+            
         model.tput_timer.update_epoch_count()
         evaluation(model, eval_dataloader)
 
@@ -539,18 +557,6 @@ def main():
             WEIGHTS_NAME = "pytorch_model.bin"
             output_model_file = os.path.join(f'{args.output_dir}/epoch-{epoch}', WEIGHTS_NAME)
             torch.save(lean_state_dict, output_model_file)
-        
-        # model = unfuse_lora(model)
-        # # save deepspeed zero checkpoint so we can resume training if needed
-        # client_state = {
-        #     'random_rng_state': random.getstate(),
-        #     'np_rng_state': np.random.get_state(),
-        #     'torch_rng_state': torch.get_rng_state(),
-        #     'torch_cuda_rng_state': torch.cuda.get_rng_state(),
-        #     'epoch': epoch + 1, # start from next epoch
-        #     # 'best_loss': best_loss,
-        # }
-        # model.save_checkpoint(args.output_dir, client_state=client_state) # save to the latest
 
 if __name__ == "__main__":
     main()

@@ -5,16 +5,21 @@ import torch.nn.functional as F
 def sampling(actor_model,
             img, lang, 
             attention_mask=None,
-            input_labels=None,
-            max_seq_len=1024,
-            pad_token_id=0):
+            pad_token_id=0,
+            topk=50,
+            top_p=0.95,
+            do_sample=True,
+            max_new_tokens=384,
+            num_return_sequences=1,
+            temperature=0.75):
     
     generation_kwargs={
-        "top_k": 50,
-        "top_p": 0.95,
-        "do_sample": True,
-        "max_new_tokens": 256,
-        "num_return_sequences": 1
+        "top_k": topk,
+        "top_p": top_p,
+        "do_sample": do_sample,
+        "max_new_tokens": max_new_tokens,
+        "num_return_sequences": num_return_sequences,
+        "temperature": temperature
     }
 
     max_new_tokens = generation_kwargs["max_new_tokens"]
@@ -37,8 +42,8 @@ def sampling(actor_model,
         sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
 
         res = actor_model.generate(sub_img, sub_lang, 
-                                        generation_length=max_new_tokens+max_seq_len, 
-                                        generation_kwargs=generation_kwargs)
+                                    generation_length=max_new_tokens, 
+                                    generation_kwargs=generation_kwargs)
         
         all_res.append(res)
     actor_model.train()

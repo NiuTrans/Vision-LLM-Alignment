@@ -5,7 +5,7 @@ import random
 
 template = "llama_3" # llama_2, vicuna, defalut
 
-source_data = open('data/llava/LLaVA-Human-Preference-10K/llava_7b_v1_preference.json', 'r', encoding='utf-8')
+source_data = open('data/llava/llava_instruct_150k.json', 'r', encoding='utf-8')
 source_data = json.load(source_data)
 
 defalut_roles = ["\n\n### Question:\n", "\n\n### Answer:\n",""]
@@ -43,14 +43,10 @@ for line in source_data:
                 human_string += roles[index%2]
                 human_string += conv["value"].strip("\n")
             human_string += token_of_end
+        gpt_string = line["conversations"][-1]["value"]
     else:
         human_string += line["conversations"][0]["value"]
-
-    human_preference = line["preference"]
-    if human_preference==1:
-        gpt_string = [line["output_1"]["value"], line["output_2"]["value"]]
-    else:
-        gpt_string = [line["output_2"]["value"], line["output_1"]["value"]]
+        gpt_string = line["conversations"][1]["value"]
 
 
     all_data.append(
@@ -70,18 +66,9 @@ for line in source_data:
         }
     )
 
-# split training set and valid set
+with open('data/llava/ppo/llava_instruct_150k_for_ppo_training.json', 'w', encoding='utf-8') as file:
+    json_str = json.dump(all_data, file, ensure_ascii=False, indent=4)
 
-test_index = random.sample(range(len(all_data)), 500)
-
-training_data = [all_data[index] for index in range(len(all_data)) if index not in test_index]
-test_data = [all_data[index] for index in range(len(all_data)) if index in test_index]
-
-with open('data/llava/conversation_train.json', 'w', encoding='utf-8') as file:
-    json_str = json.dump(training_data, file, ensure_ascii=False, indent=4)
-
-with open('data/llava/conversation_test.json', 'w', encoding='utf-8') as file:
-    json_str = json.dump(test_data, file, ensure_ascii=False, indent=4)
 
     
                 

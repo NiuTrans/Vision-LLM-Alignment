@@ -304,6 +304,12 @@ def parse_args():
         default=100,
         help='The evaluation will be conducted every specific number of training steps.')
 
+    parser.add_argument(
+        '--max_generation_length_of_sampling',
+        type=int,
+        default=384,
+        help='The max generation langth during sampling.')
+
     parser.add_argument('--template',
                 type=str,
                 choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
@@ -386,7 +392,6 @@ def main():
     )
 
     # split the dataset into train and evaluation
-    total_data = len(dataset)
     np_rng = np.random.RandomState(seed=args.seed)
     dataset = shuffle_dataset(dataset, np_rng)
     train_dataset, eval_dataset = split_dataset(dataset, args.data_train_split_ratio)
@@ -401,7 +406,7 @@ def main():
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
-        sampler=DistributedSampler(eval_dataset, shuffle=False),
+        sampler=DistributedSampler(eval_dataset, shuffle=True, drop_last=True),
         collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, tokenizer.pad_token_id),
     )
 
@@ -411,29 +416,34 @@ def main():
         rlhf_engine.actor.gradient_checkpointing_enable()
         rlhf_engine.critic.gradient_checkpointing_enable()
 
-    def evaluation(model, eval_dataloader):
+    end_of_token = ""
+    if args.template == "llama_3":
+        end_of_token = DST.LLAMA3_HUMAN_QUESTION_PRETOKEN_END
+    elif args.template == "llama_2":
+        end_of_token = DST.LLAMA2_HUMAN_QUESTION_PRETOKEN_END
+    elif args.template == "vicuna":
+        end_of_token = DST.VICUNA_HUMAN_QUESTION_PRETOKEN_END
+
+    def evaluation(eval_dataloader):
         print_rank_0("***** Running training *****", args.global_rank)
-        model.eval()
         reward_score_acc = 0
         for step, batch in enumerate(tqdm(eval_dataloader)):
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
-            labels = batch["labels"]
             with torch.no_grad():
                 # generation
                 sampling_ans = sampling(rlhf_engine.actor, 
                                 images, input_ids, 
                                 attention_mask=attention_mask, 
-                                input_labels=labels, 
-                                max_seq_len=args.max_seq_len,
-                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id)
+                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                max_new_tokens=args.max_generation_length_of_sampling)
             
             # compute reward scores
             question_strings = rlhf_engine.actor_tokenizer_new.batch_decode(input_ids)
             question_answer_pairs_strinig = [q.replace(rlhf_engine.actor_tokenizer_new.bos_token, "").replace(rlhf_engine.actor_tokenizer_new.pad_token, "").strip(" ") + \
-                                            a[1] for q, a in zip(question_strings, sampling_ans)]
+                                            a[1] + end_of_token for q, a in zip(question_strings, sampling_ans)]
             # encoder with reward model's tokenizer
             question_answer_pairs = rlhf_engine.critic_tokenizer_new(question_answer_pairs_strinig, 
                                                                     padding=True, 
@@ -453,9 +463,7 @@ def main():
                                     image_num=batch["image_num"]
                                 )["chosen_end_scores"]
 
-
             reward_score_acc += reward_scores.mean()
-        model.train()
         reward_score_acc = get_all_reduce_mean(reward_score_acc).item()
         reward_score_avg = reward_score_acc/(step+1)
         print_rank_0(f"the eval average reward scores: {reward_score_avg}", args.global_rank)
@@ -464,7 +472,7 @@ def main():
     # Train!
     if start_epoch == 0:
         print_rank_0("***** Before training *****", args.global_rank)
-        evaluation(rlhf_engine.actor, eval_dataloader)
+        evaluation(eval_dataloader)
 
     print_rank_0("***** Running training *****", args.global_rank)
     global_step = 0
@@ -477,28 +485,24 @@ def main():
         rlhf_engine.critic.train()
         rlhf_engine.ref.eval()
         rlhf_engine.reward.eval()
-
         for step, batch in enumerate(tqdm(train_dataloader)):
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
-            labels = batch["labels"]
             # Step 1: sampling candidate answers
             sampling_ans = sampling(rlhf_engine.actor, 
                                     images, input_ids, 
                                     attention_mask=attention_mask, 
-                                    input_labels=labels, 
-                                    max_seq_len=args.max_seq_len,
-                                    pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id)
+                                    pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                    max_new_tokens=args.max_generation_length_of_sampling)
             
             # Step 2: computing reward scores
             # Firstly, we convert the question to a string format. 
             # We then concat the question string with the sampled answer string.
-            # question_strings = rlhf_engine.actor_tokenizer_new.
             question_strings = rlhf_engine.actor_tokenizer_new.batch_decode(input_ids)
             question_answer_pairs_strinig = [q.replace(rlhf_engine.actor_tokenizer_new.bos_token, "").replace(rlhf_engine.actor_tokenizer_new.pad_token, "").strip(" ") + \
-                                            a[1] for q, a in zip(question_strings, sampling_ans)]
+                                            a[1] + end_of_token for q, a in zip(question_strings, sampling_ans)]
             
             # encoder with reward model's tokenizer
             question_answer_pairs = rlhf_engine.critic_tokenizer_new(question_answer_pairs_strinig, 
@@ -662,8 +666,8 @@ def main():
                 kl_distance_log = get_all_reduce_mean(kl_distance_log).item()
 
             print_rank_0(
-                f'Epoch {epoch+1}, Step: {step+1}, Actor Loss:{actor_loss_log/args.ppo_epochs},'+ \
-                f'Critic Loss:{critic_loss_log/args.ppo_epochs}, Reward Score: {reward_scores.mean()},'+ \
+                f'Epoch {epoch+1}, Step: {step+1}, Actor Loss:{actor_loss_log/args.ppo_epochs}, '+ \
+                f'Critic Loss:{critic_loss_log/args.ppo_epochs}, Reward Score: {reward_scores.mean()}, '+ \
                 f'KL Distance: {kl_distance_log/args.ppo_epochs}', 
                 args.global_rank)
 
@@ -679,7 +683,7 @@ def main():
                                         args.global_rank,
                                         args.output_dir,
                                         zero_stage=args.zero_stage, 
-                                        sub_folder=f'epoch-{epoch}')
+                                        sub_folder=f'epoch-{epoch}-step-{global_step}')
                 if args.actor_zero_stage in [1,2]:
                     # https://deepspeed.readthedocs.io/en/latest/model-checkpointing.html
                     model_to_save = model.module if hasattr(model,
@@ -691,9 +695,9 @@ def main():
                     torch.save(lean_state_dict, output_model_file)
             
             if global_step % args.eval_step == 0:
-                evaluation(rlhf_engine.actor, eval_dataloader)
+                evaluation(eval_dataloader)
 
-        evaluation(rlhf_engine.actor, eval_dataloader)
+        evaluation(eval_dataloader)
 
         model = fuse_lora(rlhf_engine.actor)
         if args.global_rank == 0:

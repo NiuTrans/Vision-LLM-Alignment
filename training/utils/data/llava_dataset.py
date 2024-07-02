@@ -374,7 +374,17 @@ class LlavaPredictDataset(VQADataset):
     def process_text(self, ann, data_debug_path=None, data_debug_counter=0, first_message=False, with_image=False):
         question = ann["conversations"][0]["value"]
         question = question.replace("<image>", "").strip("\n")
-        answer = ann["conversations"][1]["value"]
+        end_of_token = ""
+
+        if self.template == "llama_3":
+            end_of_token = DST.LLAMA3_HUMAN_QUESTION_PRETOKEN_END
+        elif self.template == "llama_2":
+            end_of_token = DST.LLAMA2_HUMAN_QUESTION_PRETOKEN_END
+        elif self.template == "vicuna":
+            end_of_token = DST.VICUNA_HUMAN_QUESTION_PRETOKEN_END
+
+        answer = ann["conversations"][1]["value"] + end_of_token
+
         instruction = self.prompter(question, with_image=with_image, first_message=first_message, template=self.template)
         
         save_debug_text([instruction, answer], data_debug_path, data_debug_counter, get_rank())

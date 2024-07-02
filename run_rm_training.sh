@@ -39,6 +39,7 @@ mkdir -p $OUTPUT
 cp $0 $OUTPUT
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
+
 deepspeed --include localhost:0,1,2,3,4,5,6,7 --master_port 12347 training/reward_model_training/rm_training_main.py \
     --max_seq_len 2048 --image_folder ${IMAGE_FOLDER} --template ${TEMPLATE} \
     --data_path ${DATA_PATH} --eval_data_path ${EVAL_DATA_PATH}\

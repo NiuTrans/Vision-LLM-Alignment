@@ -56,7 +56,7 @@ deepspeed --include localhost:${DEVICE} --master_port 12345 training/sft_trainin
 # Please refer to the run_rm_training.sh script for an example.
 
 deepspeed --include localhost:$DEVICE --master_port 12345 training/reward_model_training/rm_training_main.py \
-     --max_seq_len ${SEQ_LEN} \
+    --max_seq_len ${SEQ_LEN} \
     --data_path ${DATA_PATH} \
     --eval_data_path ${EVAL_DATA_PATH} \
     --image_folder ${IMAGE_FOLDER} \

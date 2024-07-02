@@ -17,6 +17,7 @@ TEMPLATE=llama_3
 lm_reward_model_name_or_path=$LLM
 vision_reward_model_name_or_path=$VISION_MODEL
 
+MAX_GENERATION_LANGTH_OF_SAMPLING=384
 
 actor_zero_stage=2
 critic_zero_stage=3
@@ -45,7 +46,8 @@ fi
 mkdir -p $OUTPUT
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
-deepspeed --include localhost:0,1,2,3 --master_port 12346 training/ppo_training/ppo_main.py --max_seq_len 1024 \
+
+deepspeed --include localhost:0,1,2,3 --master_port 12346 training/ppo_training/ppo_main.py --max_seq_len 2048 \
     --data_path ${DATA_PATH} --image_folder ${IMAGE_FOLDER} --template ${TEMPLATE} \
     --dataset_names ${DATA} --dataset_samples ${DATA_SAMPLE} --data_train_split_ratio ${TRAIN_SPLIT_RATIO} \
     --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} --max_num_image_per_sample 8 \
@@ -64,4 +66,5 @@ deepspeed --include localhost:0,1,2,3 --master_port 12346 training/ppo_training/
     --vision_reward_model_name_or_path $vision_reward_model_name_or_path \
     --actor_zero_stage $actor_zero_stage --critic_zero_stage $critic_zero_stage \
     --image_folder /localnvme/application/sc_new/wangchenglong_56/rlhf_llama_vision/data/coco2017_flickr30k_comb \
-    --actor_learning_rate $ACTOR_LEARNING_RATE --critic_learning_rate $CRITIC_LEARNING_RATE 
+    --actor_learning_rate $ACTOR_LEARNING_RATE --critic_learning_rate $CRITIC_LEARNING_RATE \
+    --max_generation_length_of_sampling ${MAX_GENERATION_LANGTH_OF_SAMPLING}

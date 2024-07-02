@@ -257,16 +257,10 @@ def main():
     train_dataset = dataset
     args.batch_size = 1
 
-    with open(args.data_path) as ref:
-        lines = ref.readlines()
-        dataset_len = len(lines)
-
-    train_dataset = Subset(dataset, range(dataset_len))
-
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
-        sampler=DistributedSampler(train_dataset, shuffle=False, drop_last=True),
+        sampler=DistributedSampler(train_dataset, shuffle=False, drop_last=False),
         collate_fn=DataCollatorPadToMaxLenForPrediction(args.max_seq_len, tokenizer.pad_token_id),
     )
 
@@ -286,7 +280,6 @@ def main():
         images = batch["image"].half() 
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
 
         image_num = batch["image_num"]
         
@@ -296,8 +289,7 @@ def main():
         sampling_ans = sampling(model, 
                                 images, input_ids, 
                                 attention_mask=attention_mask, 
-                                input_labels=labels, 
-                                max_seq_len=args.max_seq_len,
+                                max_new_tokens=args.max_seq_len,
                                 pad_token_id=tokenizer.pad_token_id)
         
         with open(args.output_path, "a") as trg:
@@ -313,8 +305,6 @@ def main():
                 print(line)
                 trg.write(line)
                 ref_count = ref_count + 1
-                if ref_count >= dataset_len:
-                    break
      
 
 if __name__ == "__main__":

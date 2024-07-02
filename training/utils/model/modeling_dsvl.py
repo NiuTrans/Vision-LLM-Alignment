@@ -396,7 +396,7 @@ class DeepSpeedViLModel(nn.Module):
             if not isinstance(img_feature, torch.Tensor):
                 img_feature = img_feature.last_hidden_state
             img_proj = self.projection(img_feature)
-            hidden_states, attention_mask, input_labels, mask_image_labels = self.concat(img_proj, lang, attention_mask, input_labels, image_num=[img.size(0)], do_generation=True)
+            hidden_states, attention_mask, input_labels, _ = self.concat(img_proj, lang, attention_mask, input_labels, image_num=[img.size(0)], do_generation=True)
         
             output = self.lang_decoder.generate(input_ids=None,
                                     inputs_embeds=hidden_states,

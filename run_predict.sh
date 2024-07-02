@@ -29,8 +29,9 @@ BATCH_SIZE=1
 rm ${OUTPUT}
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
+
 deepspeed --include localhost:3 --master_port 12362 ./eval/predict.py \
-    --max_seq_len 1024 \
+    --max_seq_len 2048 \
     --data_path ${DATA_PATH} \
     --dataset_names ${DATA} --dataset_samples ${DATA_SAMPLE} --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
     --precision bf16 --enable_mmca_attention \
