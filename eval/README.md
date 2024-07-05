@@ -49,5 +49,11 @@ deepspeed --include localhost:[DEVICE] --master_port [PORT]./eval/predict.py \
     --batch_size [BATCH_SIZE] \
     --image_folder [IMAGE_FOLDER] \
     --output_path [OUTPUT]
+    --max_new_tokens [MAX_NEW_TOKENS] \
+    --topk [TOPK] \
+    --topp [TOPP] \
+    --do_sample \
+    --num_return_sequences [NUM_RETURN] \
+    --temperature [TEMPERATURE]
     ...
 ```

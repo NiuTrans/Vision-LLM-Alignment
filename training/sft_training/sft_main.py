@@ -237,7 +237,7 @@ def parse_args():
         default=100,
         help='The evaluation will be conducted every specific number of training steps.')
     parser.add_argument(
-        '--from_checnkpoint',
+        '--from_checkpoint',
         type=str,
         default="./basemodel/",
         help='Specifying the checkpoint directory to be loaded.')
@@ -379,10 +379,10 @@ def main():
 
     start_epoch = 0
     # let load checkpoint 
-    if os.path.exists(os.path.join(args.from_checnkpoint, 'latest')):
+    if os.path.exists(os.path.join(args.from_checkpoint, 'latest')):
         # we have the deepspeed chekpoint so it is a resumed job
-        print_rank_0(f"load checkpoint from {args.from_checnkpoint}")
-        _, client_state = model.load_checkpoint(args.from_checnkpoint)
+        print_rank_0(f"load checkpoint from {args.from_checkpoint}")
+        _, client_state = model.load_checkpoint(args.from_checkpoint)
 
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()

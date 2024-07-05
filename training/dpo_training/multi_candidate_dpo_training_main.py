@@ -234,7 +234,7 @@ def parse_args():
         action='store_true',
         help='Enable LLM update.')
     parser.add_argument(
-        '--from_checnkpoint',
+        '--from_checkpoint',
         type=str,
         default="./basemodel/",
         help='Specifying the checkpoint directory to be loaded.')
@@ -370,7 +370,7 @@ def main():
     )
 
     print_rank_0("load actor model............")
-    model.load_state_dict(torch.load(os.path.join(args.from_checnkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_config = get_train_ds_config(args, offload=args.offload,
                                     stage=args.zero_stage)
@@ -429,7 +429,7 @@ def main():
             )
 
     print_rank_0("load ref model............")
-    ref_model.load_state_dict(torch.load(os.path.join(args.from_checnkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    ref_model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_ref_config_training = get_train_ds_config(
         offload=args.offload,

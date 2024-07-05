@@ -95,7 +95,7 @@ deepspeed --include localhost:$DEVICE --master_port 12345 training/dpo_training/
     --max_num_image_per_sample 8 \
     --lm_model_name_or_path  ${LLM} \
     --vision_model_name_or_path ${VISION_MODEL} \
-    --from_checnkpoint ${FROM_CHECKPOINT} \
+    --from_checkpoint ${FROM_CHECKPOINT} \
     --gradient_checkpointing \
     --vis_proj [baseline or vit or ...] \
     --gradient_accumulation_steps 8  \

@@ -42,7 +42,7 @@ deepspeed --include localhost:0 --master_port 12348 training/dpo_training/dpo_tr
     --dataset_names ${DATA} --dataset_samples ${DATA_SAMPLE} --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} --max_num_image_per_sample 8 \
     --lm_model_name_or_path  ${LLM} \
     --vision_model_name_or_path ${VISION_MODEL} \
-    --from_checnkpoint ${FROM_CHECKPOINT} \
+    --from_checkpoint ${FROM_CHECKPOINT} \
     --gradient_checkpointing --vis_proj baseline \
     --gradient_accumulation_steps 8  --zero_stage $ZERO_STAGE --learning_rate $lr --num_warmup_steps 0.1 \
     --per_device_train_batch_size 2  --deepspeed --output_dir $OUTPUT  \

@@ -232,7 +232,7 @@ def parse_args():
                     type=str,
                     choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
     parser.add_argument(
-        '--from_checnkpoint',
+        '--from_checkpoint',
         type=str,
         default="./basemodel/",
         help='Specifying the checkpoint directory to be loaded.')
@@ -293,10 +293,10 @@ def main():
             args=args)
         
     # let load checkpoint 
-    if os.path.exists(os.path.join(args.from_checnkpoint, 'latest')):
+    if os.path.exists(os.path.join(args.from_checkpoint, 'latest')):
         # we have the deepspeed chekpoint so it is a resumed job
-        print_rank_0(f"load checkpoint from {args.from_checnkpoint}")
-        _, client_state = model.load_checkpoint(args.from_checnkpoint)
+        print_rank_0(f"load checkpoint from {args.from_checkpoint}")
+        _, client_state = model.load_checkpoint(args.from_checkpoint)
     
     tokenizer.add_bos_token = True
     tokenizer.add_eos_token = True
