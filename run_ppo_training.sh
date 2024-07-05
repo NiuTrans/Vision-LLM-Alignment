@@ -51,7 +51,7 @@ deepspeed --include localhost:0,1,2,3 --master_port 12346 training/ppo_training/
     --gradient_accumulation_steps 4 --num_warmup_steps 0.1 \
     --per_device_train_batch_size 2 --per_device_eval_batch_size 4 --deepspeed --output_dir $OUTPUT  \
     --num_train_epochs ${EPOCH} --ppo_epochs 4 --enable_mmca_attention \
-    --precision bf16 \
+    --lang_decoder_update --precision bf16 \
     --sft_model_ckpt_path $sft_model_ckpt_path \
     --reward_model_ckpt_path $reward_model_ckpt_path \
     --lm_model_name_or_path $LLM \

@@ -34,7 +34,7 @@ mkdir -p $OUTPUT
 cp $0 $OUTPUT
 
 # we assume the batch size is 128, which means Num_GPU * per_device_train_batch_size * gradient_accumulation_steps
-# Note: we only keep the visual encoder weights frozen, and update all other parameters.
+# Note: we keep the visual encoder weights and LLM decoder weights frozen in the process of pretraining.
 
 deepspeed --include localhost:0,1,2,3,4,5,6,7 --master_port 12346 training/sft_training/sft_main.py --max_seq_len 2048 \
     --data_path ${DATA_PATH} --image_folder ${IMAGE_FOLDER} --template ${TEMPLATE}\
@@ -46,5 +46,4 @@ deepspeed --include localhost:0,1,2,3,4,5,6,7 --master_port 12346 training/sft_t
     --gradient_accumulation_steps 1  --zero_stage $ZERO_STAGE --learning_rate $lr --num_warmup_steps 0.1 \
     --per_device_train_batch_size 16 --per_device_eval_batch_size 16 --deepspeed --output_dir $OUTPUT  \
     --num_train_epochs ${EPOCH} --enable_mmca_attention \
-    --lang_decoder_update \
     --precision bf16 

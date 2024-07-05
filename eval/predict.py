@@ -97,6 +97,7 @@ def parse_args():
         default=4096,
         help="The maximum sequence length, note that image tokens are included.",
     )
+    
     parser.add_argument('--enable_tensorboard',
                     action='store_true',
                     help='Enable tensorboard logging')
@@ -180,6 +181,36 @@ def parse_args():
     parser.add_argument('--template',
                         type=str,
                         choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+    
+    parser.add_argument(
+        "--max_new_tokens",
+        default=384,
+        type=int
+    )
+    parser.add_argument(
+        "--topk",
+        default=50,
+        type=int
+    )
+    parser.add_argument(
+        "--topp",
+        default=0.95,
+        type=float
+    )
+    parser.add_argument(
+        "--do_sample",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--num_return_sequences",
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        "--temperature",
+        default=0.75,
+        type=float
+    )
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -253,6 +284,16 @@ def main():
         template=args.template
     )
 
+    generation_kwargs={
+        "topk": args.topk,
+        "topp": args.topp,
+        "do_sample": args.do_sample,
+        "max_new_tokens": args.max_new_tokens,
+        "num_return_sequences": args.num_return_sequences,
+        "temperature": args.temperature
+    }
+
+
     # split the dataset into train and evaluation
     train_dataset = dataset
     args.batch_size = 1
@@ -289,16 +330,15 @@ def main():
         sampling_ans = sampling(model, 
                                 images, input_ids, 
                                 attention_mask=attention_mask, 
-                                max_new_tokens=args.max_seq_len,
-                                pad_token_id=tokenizer.pad_token_id)
+                                pad_token_id=tokenizer.pad_token_id,
+                                **generation_kwargs)
         
         with open(args.output_path, "a") as trg:
             for i in range(args.batch_size):       
-                # from training.utils.pdb import pdb; pdb.set_trace() 
                 id = str(batch['id'][0])
                 ref_image = reference_dict[id]['image'] if reference_dict[id]['image'] is not None else "None"
                 ref_label = reference_dict[id]['label'] if 'label' in reference_dict[id].keys() else "None"
-                line = " ||| ".join([ref_image.strip(), 
+                line = " ||| ".join([id, ref_image.strip(), 
                         tokenizer.decode(input_ids[i]).replace("\n", "\\n"), 
                         sampling_ans[i][1].replace("\n", "\\n"), 
                         ref_label.strip()]) + "\n"

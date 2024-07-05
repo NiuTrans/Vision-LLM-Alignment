@@ -46,5 +46,5 @@ deepspeed --include localhost:0 --master_port 12348 training/dpo_training/dpo_tr
     --gradient_checkpointing --vis_proj baseline \
     --gradient_accumulation_steps 8  --zero_stage $ZERO_STAGE --learning_rate $lr --num_warmup_steps 0.1 \
     --per_device_train_batch_size 2  --deepspeed --output_dir $OUTPUT  \
-    --num_train_epochs ${EPOCH} --enable_mmca_attention \
+    --num_train_epochs ${EPOCH} --enable_mmca_attention --lang_decoder_update \
     --precision bf16 --ranked_candidate_num $CANDIDATE_NUM 

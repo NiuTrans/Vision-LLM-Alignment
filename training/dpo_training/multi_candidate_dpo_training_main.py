@@ -225,7 +225,14 @@ def parse_args():
     parser.add_argument('--only_optimize_lora',
                         action='store_true',
                         help='Only optimize the LoRA parameters.')
-
+    parser.add_argument(
+        '--vis_encoder_update',
+        action='store_true',
+        help='Enable vision encoder update.')
+    parser.add_argument(
+        '--lang_decoder_update',
+        action='store_true',
+        help='Enable LLM update.')
     parser.add_argument(
         '--from_checnkpoint',
         type=str,
@@ -465,14 +472,14 @@ def main():
                     input_labels=labels,
                     image_num=batch["image_num"],
                 )[1]
-            # from training.utils import pdb;pdb.set_trace()
             logprobs = gather_log_probs(outputs_logits[:, :-1, :], input_ids[:, 1:], labels)
             ref_logprobs = gather_log_probs(ref_outputs_logits[:, :-1, :], input_ids[:,1:], labels)
             
-            # from training.utils import pdb;pdb.set_trace()
-            # check data
-            # assert logprobs.shape[0] == args.per_device_train_batch_size * 2, \
-            #     "check the number of the candidate, dpo only support two, chosen and rejected !!!"
+            if logprobs.shape[0] != args.per_device_train_batch_size * args.ranked_candidate_num:
+                print("check the number of the candidate, chosen and rejected !!!")
+                del logprobs
+                del ref_logprobs
+                continue
 
             # use warmupbeta
             if_del_reference = False
@@ -503,7 +510,6 @@ def main():
                 loss += (- torch.log(probability) * (1 - args.label_smoothing) - \
                         torch.log(1 - probability) * args.label_smoothing)
             
-            # loss = loss / sum(count_list)
             loss = loss / sample_num
             model.backward(loss)
             model.step()

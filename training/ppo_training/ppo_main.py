@@ -240,6 +240,14 @@ def parse_args():
         help=
         "Path to the used vision model for training reward models.",
         type=str)
+    parser.add_argument(
+        '--vis_encoder_update',
+        action='store_true',
+        help='Enable vision encoder update.')
+    parser.add_argument(
+        '--lang_decoder_update',
+        action='store_true',
+        help='Enable LLM update.')
     # Here we do not set the reference model and critic model.
     # We use the sft model to initialize the reference model, 
     # and use the reward model to initialize the critic model.
@@ -470,10 +478,6 @@ def main():
         return reward_score_avg
     
     # Train!
-    if start_epoch == 0:
-        print_rank_0("***** Before training *****", args.global_rank)
-        evaluation(eval_dataloader)
-
     print_rank_0("***** Running training *****", args.global_rank)
     global_step = 0
     for epoch in range(start_epoch, args.num_train_epochs):
@@ -676,7 +680,7 @@ def main():
 
                 model = fuse_lora(rlhf_engine.actor)
                 if args.global_rank == 0:
-                    save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}-step-{global_step}')
+                    save_hf_format(model, tokenizer, args, f'epoch-{epoch}-step-{global_step}')
                 if args.actor_zero_stage == 3:
                     # For zero stage 3, each gpu only has a part of the model, so we need a special save function
                     save_zero_three_model(model,
@@ -701,7 +705,7 @@ def main():
 
         model = fuse_lora(rlhf_engine.actor)
         if args.global_rank == 0:
-            save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}')
+            save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.actor_zero_stage == 3:
             # For zero stage 3, each gpu only has a part of the model, so we need a special save function
             save_zero_three_model(model,

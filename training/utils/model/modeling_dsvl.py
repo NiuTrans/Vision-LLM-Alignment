@@ -131,17 +131,30 @@ class DeepSpeedViLModel(nn.Module):
         self.projection = self.build_projection(vis_config, self.lang_config.hidden_size)   
         self._init_weight()
         
-
         # get padding token embedding
-        self.padding_embedding = None 
-        self.vis_encoder_update = None
+        self.padding_embedding = None
+
+        self.vis_encoder_update = args.vis_encoder_update
+        self.lang_decoder_update = args.lang_decoder_update
+
+        # enable the gradient computation of parameters 
+        if not self.vis_encoder_update:
+            for p in self.vis_encoder.parameters():
+                p.requires_grad = False
+        else:
+            for p in self.vis_encoder.parameters():
+                p.requires_grad = True
+        
+        if not self.lang_decoder_update:
+            pass  # init_weigth have set the gradient computation of lang decoder to False
+        else:
+            self.lang_decoder.requires_grad_(True)
 
     def _enable_special_token(self):
         self.DEFAULT_IMAGE_TOKEN_ID = self.tokenizer.convert_tokens_to_ids(DST.DEFAULT_IMAGE_TOKEN)
         self.DEFAULT_IMAGE_PATCH_TOKEN_ID = self.tokenizer.convert_tokens_to_ids(DST.DEFAULT_IMAGE_PATCH_TOKEN)
         self.DEFAULT_IM_START_TOKEN_ID = self.tokenizer.convert_tokens_to_ids(DST.DEFAULT_IM_START_TOKEN)
         self.DEFAULT_IM_END_TOKEN_ID = self.tokenizer.convert_tokens_to_ids(DST.DEFAULT_IM_END_TOKEN)
-
         
     def _get_model_stat(self, model_name):   
         config_dic = {
@@ -172,8 +185,7 @@ class DeepSpeedViLModel(nn.Module):
                 if rows == self.n_positions:
                     pos_embedding = copy.deepcopy(module)
         return token_embedding, pos_embedding
-     
-        
+       
     def _init_weight(self):
         self.vis_encoder.requires_grad_(False)  
         self.lang_decoder.requires_grad_(False)  
@@ -182,7 +194,6 @@ class DeepSpeedViLModel(nn.Module):
         if  self.pos_embedding  is not None:     
             self.pos_embedding.requires_grad_(True) 
         
-
     def build_projection(self, vis_config, lang_dim):
         if self.args.vis_proj == 'vit':
             output =  VisProjection_vit(vis_config, lang_dim=lang_dim)
@@ -300,11 +311,6 @@ class DeepSpeedViLModel(nn.Module):
         assert attention_mask is not None, "attention mask is required"
         assert input_labels is not None, "input labels is required"
 
-        if self.vis_encoder_update is None:
-            self.vis_encoder_update = False # default is False
-            for p in self.vis_encoder.parameters():
-                if p.requires_grad:
-                    self.vis_encoder_update = True
         # this part for now does not require gradient
         if self.vis_encoder_update:
             # update vis encoder
@@ -331,7 +337,7 @@ class DeepSpeedViLModel(nn.Module):
             position_ids = position_ids.unsqueeze(0).view(-1, hidden_states.size()[1])
             position_embeds = self.pos_embedding(position_ids)
             hidden_states = hidden_states + position_embeds
-            
+        
         logits = self.lang_decoder(input_ids=None, 
                                     inputs_embeds=hidden_states,
                                     attention_mask=attention_mask,
@@ -341,7 +347,6 @@ class DeepSpeedViLModel(nn.Module):
                                     output_attentions=output_attentions, 
                                     output_hidden_states=output_hidden_states,
                                     return_dict=return_dict).logits
-        
         
         logits_shift = logits[..., :-1, :].contiguous().view(-1, self.vocab_size) # remove the last token
         labels_shift = labels[..., 1:].contiguous().to(logits_shift.device).view(-1) # remove the first token

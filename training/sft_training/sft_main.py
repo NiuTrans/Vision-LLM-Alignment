@@ -241,6 +241,14 @@ def parse_args():
         type=str,
         default="./basemodel/",
         help='Specifying the checkpoint directory to be loaded.')
+    parser.add_argument(
+        '--vis_encoder_update',
+        action='store_true',
+        help='Enable vision encoder update.')
+    parser.add_argument(
+        '--lang_decoder_update',
+        action='store_true',
+        help='Enable LLM update.')
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -252,7 +260,6 @@ def parse_args():
     if 'qwen' in args.vision_model_name_or_path.lower():
         assert args.vis_proj == 'baseline', "qwen's model only support baseline vis_proj as it has the perceiver module inside"
     return args
-
 
 def main():
     args = parse_args()

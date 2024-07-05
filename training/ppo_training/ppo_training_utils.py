@@ -7,7 +7,7 @@ def sampling(actor_model,
             attention_mask=None,
             pad_token_id=0,
             topk=50,
-            top_p=0.95,
+            topp=0.95,
             do_sample=True,
             max_new_tokens=384,
             num_return_sequences=1,
@@ -15,13 +15,12 @@ def sampling(actor_model,
     
     generation_kwargs={
         "top_k": topk,
-        "top_p": top_p,
+        "top_p": topp,
         "do_sample": do_sample,
         "max_new_tokens": max_new_tokens,
         "num_return_sequences": num_return_sequences,
         "temperature": temperature
     }
-
     max_new_tokens = generation_kwargs["max_new_tokens"]
     generation_kwargs.pop("max_new_tokens")
 
