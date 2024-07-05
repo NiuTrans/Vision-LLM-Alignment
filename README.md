@@ -48,6 +48,7 @@ deepspeed --include localhost:${DEVICE} --master_port 12345 training/sft_trainin
     --deepspeed --output_dir $OUTPUT  \
     --num_train_epochs ${EPOCH} \
     --enable_mmca_attention \
+    --lang_decoder_update \
     --precision bf16 
 ```
 
@@ -77,6 +78,7 @@ deepspeed --include localhost:$DEVICE --master_port 12345 training/reward_model_
     --output_dir $OUTPUT  \
     --num_train_epochs ${EPOCH} \
     --enable_mmca_attention \
+    --lang_decoder_update \
     --precision bf16 \
     --ranked_candidate_num $candidate_num
 ```
@@ -106,6 +108,7 @@ deepspeed --include localhost:$DEVICE --master_port 12345 training/dpo_training/
     --output_dir $OUTPUT  \
     --num_train_epochs ${EPOCH} \
     --enable_mmca_attention \
+    --lang_decoder_update \
     --precision bf16 \
     --ranked_candidate_num $candidate_num  
 ```
@@ -136,6 +139,7 @@ deepspeed --include localhost:$DEVICE --master_port 12345 training/ppo_training/
     --num_train_epochs ${EPOCH} \
     --ppo_epochs 4 \
     --enable_mmca_attention \
+    --lang_decoder_update \
     --precision bf16 \
     --sft_model_ckpt_path $sft_model_ckpt_path \
     --reward_model_ckpt_path $reward_model_ckpt_path \
@@ -183,7 +187,7 @@ Note: Other LLMs with the same architecture as LLaMA-2/3 are also supported.
 | clip-vit-large-patch14 |
 | clip-vit-large-patch14-336 |
 
-## Supported Training Modes
+## Supported Traing Modes
 
 | Method | Full | LoRA |
 |:---:|:---:|:---:|
