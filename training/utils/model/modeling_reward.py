@@ -306,7 +306,22 @@ class DeepSpeedViLModel(nn.Module):
         
         # get padding token embedding
         self.padding_embedding = None 
-        self.vis_encoder_update = None
+
+        self.vis_encoder_update = args.vis_encoder_update
+        self.lang_decoder_update = args.lang_decoder_update
+
+        # enable the gradient computation of parameters 
+        if not self.vis_encoder_update:
+            for p in self.vis_encoder.parameters():
+                p.requires_grad = False
+        else:
+            for p in self.vis_encoder.parameters():
+                p.requires_grad = True
+        
+        if not self.lang_decoder_update:
+            pass  # init_weigth have set the gradient computation of lang decoder to False
+        else:
+            self.lang_decoder.requires_grad_(True)
 
     def _enable_special_token(self):
         self.DEFAULT_IMAGE_TOKEN_ID = self.tokenizer.convert_tokens_to_ids(DST.DEFAULT_IMAGE_TOKEN)
