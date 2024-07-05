@@ -183,7 +183,7 @@ Note: Other LLMs with the same architecture as LLaMA-2/3 are also supported.
 | clip-vit-large-patch14 |
 | clip-vit-large-patch14-336 |
 
-## Supported Traing Modes
+## Supported Training Modes
 
 | Method | Full | LoRA |
 |:---:|:---:|:---:|
