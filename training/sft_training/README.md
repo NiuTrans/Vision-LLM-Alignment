@@ -68,6 +68,7 @@ deepspeed --include localhost:${DEVICE} --master_port 12345 training/sft_trainin
 * `gradient_checkpointing` - Enable HF gradient checkpointing for the model.
 * `lm_model_name_or_path` - Path to the LLM base of the vision LLM. Make sure config files exist.
 * `vision_model_name_or_path` - Path to the vision model base of the vision LLM.
+* `model_architecture` - Architecture of the vision model. Default: default
 * `enable_mmca_attention` - Add this parameter when any image is involved in the input.
 * `vis_proj` - [baseline, vit, or perceiver], used to project vision feature to LLM embedding. Default: baseline
 * `zero_stage` - ZeRO optimization stage for Actor model (and clones). Default: 0

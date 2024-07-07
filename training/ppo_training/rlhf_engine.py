@@ -170,7 +170,7 @@ class DeepSpeedRLHFEngine():
         model, image_processor, tokenizer = create_reward_or_critic_model(
                                             text_tokenizer=self.reward_tokenizer,
                                             ds_config=ds_config,
-                                            is_reward=True,
+                                            is_reward=False,
                                             is_load_from_ckpt=False,
                                             args=self.args)
                                     

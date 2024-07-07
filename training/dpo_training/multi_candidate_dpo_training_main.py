@@ -8,6 +8,7 @@ import numpy as np
 
 import random
 import torch.distributed
+import torch.distributed as dist
 from tqdm import tqdm
 import torch
 torch.autograd.set_detect_anomaly(True)
@@ -493,7 +494,7 @@ def main():
                     numerator_logps = logprobs[sum(count_list[:batch_index]) + i]
                     numerator_ref_logps = ref_logprobs[sum(count_list[:batch_index]) + i]
                     
-                    denominator = 0
+                    denominator = 0.01
                     for j in range(i, can_num):
                         denominator_logps = logprobs[sum(count_list[:batch_index]) + j]
                         denominator_ref_logps = ref_logprobs[sum(count_list[:batch_index]) + j]
@@ -505,14 +506,25 @@ def main():
                     if if_del_reference:
                         probability *= torch.exp(args.beta * (numerator_logps)) / denominator
                     else:
-                        probability *= torch.exp(args.beta * (numerator_logps - numerator_ref_logps)) / denominator
-                
+                        # Overflow Prevention
+                        try:
+                            probability *= torch.exp(args.beta * (numerator_logps - numerator_ref_logps)) / denominator
+                        except:
+                            probability = probability
+                            print("skip this comparsion!!!")
+
                 loss += (- torch.log(probability) * (1 - args.label_smoothing) - \
                         torch.log(1 - probability) * args.label_smoothing)
             
             loss = loss / sample_num
-            model.backward(loss)
-            model.step()
+            if torch.isnan(loss):
+                print("Checking for a NaN value in the loss value!!!")
+                del logprobs
+                dist.barrier()
+                continue
+            else:
+                model.backward(loss)
+                model.step()
 
             dpo_training_loss += loss
 

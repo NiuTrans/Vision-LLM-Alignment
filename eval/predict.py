@@ -177,6 +177,14 @@ def parse_args():
         help=
         "Path to the used vision model for training reward models.",
         type=str)
+    parser.add_argument(
+        '--vis_encoder_update',
+        action='store_true',
+        help='Enable vision encoder update.')
+    parser.add_argument(
+        '--lang_decoder_update',
+        action='store_true',
+        help='Enable LLM update.')
     
     parser.add_argument('--template',
                         type=str,

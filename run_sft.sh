@@ -9,6 +9,8 @@ export PYTHONPATH=${ROOT}:${PYTHONPATH}
 VISION_MODEL=base_models/vision_encoder/clip-vit-large-patch14
 LLM=base_models/llama-3-8b-Instruct
 
+MODEL_ARCHITECTURE='default'
+
 TEMPLATE=llama_3
 
 DATA_PATH=data/sft_samples.json
@@ -42,6 +44,7 @@ deepspeed --include localhost:0,1,2,3,4,5,6,7 --master_port 12346 training/sft_t
     --data_train_split_ratio ${DATA_TRAIN_SPLIT_RATIO} --max_num_image_per_sample 8 --eval_step 500 \
     --lm_model_name_or_path  ${LLM} \
     --vision_model_name_or_path ${VISION_MODEL} \
+    --model_architecture ${MODEL_ARCHITECTURE} \
     --gradient_checkpointing --vis_proj baseline \
     --gradient_accumulation_steps 1  --zero_stage $ZERO_STAGE --learning_rate $lr --num_warmup_steps 0.1 \
     --per_device_train_batch_size 16 --per_device_eval_batch_size 16 --deepspeed --output_dir $OUTPUT  \

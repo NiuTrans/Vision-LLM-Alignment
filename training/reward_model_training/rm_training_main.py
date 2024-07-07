@@ -241,6 +241,14 @@ def parse_args():
         type=int,
         default=100,
         help='The evaluation will be conducted every specific number of training steps.')
+    parser.add_argument(
+        '--vis_encoder_update',
+        action='store_true',
+        help='Enable vision encoder update.')
+    parser.add_argument(
+        '--lang_decoder_update',
+        action='store_true',
+        help='Enable LLM update.')
 
 
     parser = deepspeed.add_config_arguments(parser)

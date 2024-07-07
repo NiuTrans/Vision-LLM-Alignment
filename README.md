@@ -3,6 +3,8 @@ Vision-LLM-Alignment is a project designed to implement alignment training for v
 This includes SFT training, reward model training, and PPO/DPO training.
 If additional alignment algorithms need to be supported, please raise them in an issue.
 
+## Changelog
+- [2024/07/07] We support the direct loading of a LLaVA model during the SFT training phase. You just need to set the `model_architecture` parameter to "llava" and specify the LLaVA model path with `from_checkpoint`. Support for this functionality during the DPO, RM training, and PPO junction phases will be introduced soon.
 
 ## Installation
 You can use anaconda/miniconda to install packages needed for this project.
@@ -22,156 +24,24 @@ Some samples can be found in the [data folder](https://github.com/wangclnlp/Visi
 ## Training Models
 ### Supervised Fine-tuning (SFT)
 ```Shell
-# Please refer to the run_sft.sh script for an example.
-
-deepspeed --include localhost:${DEVICE} --master_port 12345 training/sft_training/sft_main.py \
-    --max_seq_len ${SEQ_LEN} \
-    --data_path ${DATA_PATH} \
-    --image_folder ${IMAGE_FOLDER} \
-    --template ${TEMPLATE} \
-    --dataset_names ${DATA} \
-    --dataset_samples ${DATA_SAMPLE} \
-    --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
-    --data_train_split_ratio ${DATA_TRAIN_SPLIT_RATIO} \
-    --max_num_image_per_sample ${BATCH_SIZE} \
-    --eval_step ${EVAL_STEP} \
-    --lm_model_name_or_path  ${LLM} \
-    --vision_model_name_or_path ${VISION_MODEL} \
-    --gradient_checkpointing \
-    --vis_proj [baseline or vit or ...] \
-    --gradient_accumulation_steps ${GRAD_STEP} \
-    --zero_stage $ZERO_STAGE \
-    --learning_rate $lr \
-    --num_warmup_steps 0.1 \
-    --per_device_train_batch_size 16 \
-    --per_device_eval_batch_size 16 \
-    --deepspeed --output_dir $OUTPUT  \
-    --num_train_epochs ${EPOCH} \
-    --enable_mmca_attention \
-    --lang_decoder_update \
-    --precision bf16 
+bash run_sft.sh 
 ```
 
 ### Reward Model Training
 ```Shell
-# Please refer to the run_rm_training.sh script for an example.
-
-deepspeed --include localhost:$DEVICE --master_port 12345 training/reward_model_training/rm_training_main.py \
-     --max_seq_len ${SEQ_LEN} \
-    --data_path ${DATA_PATH} \
-    --eval_data_path ${EVAL_DATA_PATH} \
-    --image_folder ${IMAGE_FOLDER} \
-    --dataset_names ${DATA} \
-    --dataset_samples ${DATA_SAMPLE} \
-    --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
-    --max_num_image_per_sample 8 \
-    --lm_reward_model_name_or_path ${LLM} \
-    --vision_reward_model_name_or_path ${VISION_MODEL} \
-    --gradient_checkpointing --vis_proj baseline \
-    --gradient_accumulation_steps 1 \
-    --zero_stage $ZERO_STAGE \
-    --learning_rate $lr \
-    --num_warmup_steps 0.1 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
-    --deepspeed \
-    --output_dir $OUTPUT  \
-    --num_train_epochs ${EPOCH} \
-    --enable_mmca_attention \
-    --lang_decoder_update \
-    --precision bf16 \
-    --ranked_candidate_num $candidate_num
+bash run_rm_training.sh
 ```
 ### Direct Pereference Optimization (DPO)
 ```Shell
-# Please refer to the run_dpo_training.sh script for an example.
-
-deepspeed --include localhost:$DEVICE --master_port 12345 training/dpo_training/dpo_training_main.py \
-    --max_seq_len ${SEQ_LEN} \
-    --data_path ${DATA_PATH} \
-    --dataset_names ${DATA} \
-    --dataset_samples ${DATA_SAMPLE} \
-    --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
-    --max_num_image_per_sample 8 \
-    --lm_model_name_or_path  ${LLM} \
-    --vision_model_name_or_path ${VISION_MODEL} \
-    --from_checkpoint ${FROM_CHECKPOINT} \
-    --gradient_checkpointing \
-    --vis_proj [baseline or vit or ...] \
-    --gradient_accumulation_steps 8  \
-    --zero_stage $ZERO_STAGE \
-    --learning_rate $lr \
-    --num_warmup_steps 0.1 \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 1 \
-    --deepspeed \
-    --output_dir $OUTPUT  \
-    --num_train_epochs ${EPOCH} \
-    --enable_mmca_attention \
-    --lang_decoder_update \
-    --precision bf16 \
-    --ranked_candidate_num $candidate_num  
+bash run_dpo_training.sh
 ```
 ### Reinforcement Learning from Human Feedback (RLHF)
 ```Shell
-# Please refer to the run_ppo_training.sh script for an example.
-
-deepspeed --include localhost:$DEVICE --master_port 12345 training/ppo_training/ppo_main.py \
-    --max_seq_len ${SEQ_LEN} \
-    --data_path ${DATA_PATH} \
-    --image_folder ${IMAGE_FOLDER} \
-    --dataset_names ${DATA} \
-    --dataset_samples ${DATA_SAMPLE} \
-    --data_train_split_ratio ${TRAIN_SPLIT_RATIO} \
-    --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
-    --max_num_image_per_sample 8 \
-    --template ${TEMPLATE} \
-    --lm_reward_model_name_or_path  ${LLM} \
-    --vision_reward_model_name_or_path ${VISION_MODEL} \
-    --gradient_checkpointing \
-    --vis_proj baseline \
-    --gradient_accumulation_steps 4 \
-    --num_warmup_steps 0.1 \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 4 \
-    --deepspeed \
-    --output_dir $OUTPUT  \
-    --num_train_epochs ${EPOCH} \
-    --ppo_epochs 4 \
-    --enable_mmca_attention \
-    --lang_decoder_update \
-    --precision bf16 \
-    --sft_model_ckpt_path $sft_model_ckpt_path \
-    --reward_model_ckpt_path $reward_model_ckpt_path \
-    --lm_model_name_or_path $LLM \
-    --vision_model_name_or_path $VISION_MODEL \
-    --lm_reward_model_name_or_path $lm_reward_model_name_or_path \
-    --vision_reward_model_name_or_path $vision_reward_model_name_or_path \
-    --actor_zero_stage $actor_zero_stage \
-    --critic_zero_stage $critic_zero_stage \
-    --image_folder ${IMAGE_FOLDER} \
-    --actor_learning_rate $ACTOR_LEARNING_RATE \
-    --critic_learning_rate $CRITIC_LEARNING_RATE 
+bash run_ppo_training.sh
 ```
 ### Evaluation
 ```Shell
-# Please refer to the run_predict.sh script for an example.
-
-deepspeed --include localhost:$DEVICE --master_port 12345 ./eval/predict.py \
-    --max_seq_len ${MAX_LENGTH} \
-    --data_path ${DATA_PATH} \
-    --dataset_names ${DATA} \
-    --dataset_samples ${DATA_SAMPLE} \
-    --dataset_concatenate_samples ${IMAGE_PER_SAMPLE} \
-    --precision bf16 \
-    --enable_mmca_attention \
-    --sft_model_ckpt_path ${CKPT_PATH} \
-    --template ${TEMPLATE} \
-    --lm_model_name_or_path ${LLM} \
-    --vision_model_name_or_path ${VISION_MODEL} \
-    --batch_size ${BATCH_SIZE} \
-    --image_folder ${IMAGE_FOLDER} \
-    --output_path ${OUTPUT}
+bash run_predict.sh 
 ```
 
 ## Supported Models

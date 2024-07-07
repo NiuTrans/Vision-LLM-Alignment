@@ -40,7 +40,6 @@ def create_dsvl_model_and_transforms(
         dschf = HfDeepSpeedConfig(ds_config)
     lang_config = AutoConfig.from_pretrained(args.lm_model_name_or_path)
 
-
     if 'qwen' in args.vision_model_name_or_path.lower():
         # use a fake config for consistent
         vis_config = AutoConfig.from_pretrained("laion/CLIP-ViT-bigG-14-laion2B-39B-b160k")

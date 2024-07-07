@@ -101,7 +101,6 @@ class VQADataset(Dataset):
         image_path = os.path.join(self.vis_root, ann["image"])
         save_debug_image(image_path, data_debug_path, data_debug_counter, get_rank(), img_idx=0)
         image = Image.open(image_path).convert("RGB")
-
         image = self.vis_processor(image)
         try:
             image = image['pixel_values'][0]

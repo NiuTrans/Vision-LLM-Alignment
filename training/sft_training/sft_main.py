@@ -27,8 +27,7 @@ sys.path.append(
 from utils.data import build_dataset, DataCollatorPadToMaxLen, split_dataset, shuffle_dataset
 from utils.utils import print_rank_0, to_device, save_hf_format, set_random_seed, get_all_reduce_mean, get_optimizer_grouped_parameters, save_zero_three_model
 from utils.ds_utils import get_train_ds_config
-from utils.module.lora import convert_linear_layer_to_lora, only_optimize_lora_parameters, fuse_lora, unfuse_lora
-from utils.model import create_dsvl_model_and_transforms
+from utils.model import build_model
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -176,10 +175,9 @@ def parse_args():
         "--lm_model_name_or_path",
         type=str,
         help=
-        "Path to pretrained model or model identifier from huggingface.co/models.",
-        required=True,
-    )
+        "Path to pretrained model or model identifier from huggingface.co/models.")
     parser.add_argument("--vision_model_name_or_path", default="openai/clip-vit-large-patch14", type=str)
+    parser.add_argument("--model_architecture", default="default", type=str)
     parser.add_argument(
         "--enable_mmca_attention",
         action='store_true',
@@ -289,20 +287,10 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
                                               fast_tokenizer=True)
     tokenizer.padding_side = 'left'
-    model, image_processor, tokenizer = create_dsvl_model_and_transforms(
+    model, image_processor, tokenizer = build_model(
             text_tokenizer=tokenizer,
             args=args,
             ds_config=ds_config)  
-    
-    if args.lang_lora_dim > 0:
-        model.lang_decoder = convert_linear_layer_to_lora(model.lang_decoder, args.lang_lora_module_name, args.lang_lora_dim)
-        if args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(model.lang_decoder)
-
-    if args.vis_lora_dim > 0:
-        model.vis_encoder = convert_linear_layer_to_lora(model.vis_encoder, args.vis_lora_module_name, args.vis_lora_dim)
-        if args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(model.vis_encoder)
 
     print_rank_0(model, args.global_rank) 
         
@@ -422,15 +410,23 @@ def main():
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             labels = batch["labels"]
-            tokenizer.decode(input_ids[0])
-            loss = model(
-                images,
-                input_ids,
-                attention_mask=attention_mask,
-                input_labels=labels,
-                image_num=batch["image_num"],
-                is_sft_stage=args.is_sft_stage
-            )[0]
+            if args.model_architecture=='default':
+                loss = model(
+                    images,
+                    input_ids,
+                    attention_mask=attention_mask,
+                    input_labels=labels,
+                    image_num=batch["image_num"],
+                    is_sft_stage=args.is_sft_stage
+                )[0]
+            elif args.model_architecture=="llava":
+                loss = model(
+                    input_ids=input_ids,
+                    pixel_values=images,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    output_hidden_states=True
+                )[0]
             model.backward(loss)
             model.step()
             
@@ -447,7 +443,6 @@ def main():
     
         evaluation(model, eval_dataloader)
 
-        model = fuse_lora(model)
         if args.global_rank == 0:
             save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.zero_stage == 3:
