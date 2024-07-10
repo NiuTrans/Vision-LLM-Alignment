@@ -1,25 +1,24 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoConfig
 from transformers import CLIPVisionModel, CLIPImageProcessor
 from huggingface_hub import snapshot_download
 from .third_party_model.hf_model.modeling_llama import LlamaForCausalLM
 from .third_party_model.hf_model.configuration_llama import LlamaConfig
 from .third_party_model.qwen_clip.qwen_clip import VisionTransformer
 from torch import nn
-from torch.nn import  CrossEntropyLoss
 import copy
 import os
 import sys
-from ..data import build_dataset, DataCollatorPadToMaxLen, add_special_token
+from ..data import add_special_token
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 import data.DST as DST # default special tokens
-from torch.utils.data import DataLoader
 from transformers.deepspeed import HfDeepSpeedConfig
 import numpy as np
 from .vis_proj import VisProjection_vit, VisProjection_perceiver
 from ..utils import load_state_dict_into_model
+from .build_model import build_model
 
 def get_name(huggingface_path):
     if 'opt' in huggingface_path.lower():
@@ -108,38 +107,66 @@ def create_reward_or_critic_model(
             args=None):
     
 
-    vis_llm, reward_image_processor, reward_tokenizer = create_dsvl_model_and_transforms(text_tokenizer=text_tokenizer,
-                                                                                        ds_config=ds_config,
-                                                                                        args=args)
+    if args.model_architecture=="default":
+        vis_llm, reward_image_processor, reward_tokenizer = create_dsvl_model_and_transforms(text_tokenizer=text_tokenizer,
+                                                                                            ds_config=ds_config,
+                                                                                            args=args)
+    else: 
+        vis_llm, reward_image_processor, reward_tokenizer = build_model(text_tokenizer=text_tokenizer,
+                                                                                            ds_config=ds_config,
+                                                                                            args=args)
+
     vis_reward_model = ViRewardModel(vis_llm=vis_llm,
                                      tokenizer=reward_tokenizer,
-                                     is_reward=is_reward)
+                                     is_reward=is_reward,
+                                     vis_architecture=args.model_architecture)
 
-    # ``"critic" in model_name_or_path`` denotes that we use previous critic model to initialize our critic model.
-    # ``"reward" in model_name_or_path`` denotes that we use reward model to initialize our critic model.
-    # ``rlhf_training and is_reward`` denotes that we initialize the reward model.
+    # ``is_reward`` denotes that we are creating a reward model; 
+    # otherwise we are creating a critic model.
     if is_load_from_ckpt:
         if is_reward:
             model_name_or_path = args.reward_model_path
         else:
             model_name_or_path = args.critic_model_ptah
 
-        # load reward model from checkpoint
-        if not os.path.isdir(model_name_or_path):
-            model_name_or_path = snapshot_download(model_name_or_path)
-        model_ckpt_path = os.path.join(model_name_or_path, 'pytorch_model.bin')
-        assert os.path.exists(
-            model_ckpt_path
-        ), f"Cannot find model checkpoint at {model_ckpt_path}"
+        if is_reward:
+            if args.model_architecture=="default":
+                 # load reward model from checkpoint
+                if not os.path.isdir(model_name_or_path):
+                    model_name_or_path = snapshot_download(model_name_or_path)
+                model_ckpt_path = os.path.join(model_name_or_path, 'pytorch_model.bin')
+                assert os.path.exists(
+                    model_ckpt_path
+                ), f"Cannot find model checkpoint at {model_ckpt_path}"
 
-        model_ckpt_state_dict = torch.load(model_ckpt_path, map_location='cpu')
+                model_ckpt_state_dict = torch.load(model_ckpt_path, map_location='cpu')
 
-        # load critic model from checkpoint with zero-stage 3 compatibility
-        # this functionality may be moved to DS checkpoint load API in future
-        load_state_dict_into_model(vis_reward_model,
-                                model_ckpt_state_dict,
-                                "",
-                                zero_stage=zero_stage)
+                # load critic model from checkpoint with zero-stage 3 compatibility
+                # this functionality may be moved to DS checkpoint load API in future
+                load_state_dict_into_model(vis_reward_model,
+                                        model_ckpt_state_dict,
+                                        "",
+                                        zero_stage=zero_stage)
+            elif args.model_architecture=="llava":
+                # The weights of the vision LLM have been loaded.
+                pass
+        else:
+            # load reward model from checkpoint
+            if not os.path.isdir(model_name_or_path):
+                model_name_or_path = snapshot_download(model_name_or_path)
+            model_ckpt_path = os.path.join(model_name_or_path, 'pytorch_model.bin')
+            assert os.path.exists(
+                model_ckpt_path
+            ), f"Cannot find model checkpoint at {model_ckpt_path}"
+
+            model_ckpt_state_dict = torch.load(model_ckpt_path, map_location='cpu')
+
+            # load critic model from checkpoint with zero-stage 3 compatibility
+            # this functionality may be moved to DS checkpoint load API in future
+            load_state_dict_into_model(vis_reward_model,
+                                    model_ckpt_state_dict,
+                                    "",
+                                    zero_stage=zero_stage)
         
     return vis_reward_model, reward_image_processor, reward_tokenizer
 
@@ -148,9 +175,16 @@ class ViRewardModel(nn.Module):
     def __init__(self, 
                  vis_llm,
                  tokenizer=None,
-                 is_reward=False):
+                 is_reward=False,
+                 vis_architecture="default"):
         super().__init__()
-        self.config = vis_llm.lang_decoder.config
+
+        if vis_architecture == "default":
+            self.config = vis_llm.lang_decoder.config
+        elif vis_architecture == "llava":
+            self.config = vis_llm.language_model.config
+
+        self.vis_architecture = vis_architecture
 
         if hasattr(self.config, "word_embed_proj_dim") and is_reward: 
             # `OPT` models use word_embed_proj_dim as final output
@@ -196,18 +230,28 @@ class ViRewardModel(nn.Module):
                 output_hidden_states=True,
                 return_dict=True):
 
-        transformer_outputs = self.rwtranrsformer(
-                img, lang, 
-                attention_mask,
-                input_labels,
-                image_num,
-                past_key_values,
-                use_cache,
-                output_attentions, 
-                output_hidden_states,
-                return_dict)
-
-        hidden_states = transformer_outputs
+        if self.vis_architecture == "default":
+            transformer_outputs = self.rwtranrsformer(
+                    img, lang, 
+                    attention_mask,
+                    input_labels,
+                    image_num,
+                    past_key_values,
+                    use_cache,
+                    output_attentions, 
+                    output_hidden_states,
+                    return_dict)
+            hidden_states = transformer_outputs
+        elif self.vis_architecture == "llava":
+            transformer_outputs = self.rwtranrsformer(
+                    input_ids=lang,
+                    pixel_values=img, 
+                    attention_mask=attention_mask,
+                    labels=input_labels,
+                    output_hidden_states=output_hidden_states,
+                    return_dict=return_dict)
+            
+            hidden_states = transformer_outputs.hidden_last_layer_drop_image
 
         rewards = self.v_head(hidden_states).squeeze(-1)
 
@@ -238,18 +282,28 @@ class ViRewardModel(nn.Module):
                     output_hidden_states=True,
                     return_dict=True):
         
-        transformer_outputs = self.rwtranrsformer(
-                img, lang, 
-                attention_mask,
-                input_labels,
-                image_num,
-                past_key_values,
-                use_cache,
-                output_attentions, 
-                output_hidden_states,
-                return_dict)
-
-        hidden_states = transformer_outputs
+        if self.vis_architecture == "default":
+            transformer_outputs = self.rwtranrsformer(
+                    img, lang, 
+                    attention_mask,
+                    input_labels,
+                    image_num,
+                    past_key_values,
+                    use_cache,
+                    output_attentions, 
+                    output_hidden_states,
+                    return_dict)
+            hidden_states = transformer_outputs
+        elif self.vis_architecture == "llava":
+            transformer_outputs = self.rwtranrsformer(
+                    input_ids=lang,
+                    pixel_values=img, 
+                    attention_mask=attention_mask,
+                    labels=input_labels,
+                    output_hidden_states=output_hidden_states,
+                    return_dict=return_dict)
+            
+            hidden_states = transformer_outputs.hidden_last_layer_drop_image
 
         rewards = self.v_head(hidden_states).squeeze(-1)
 

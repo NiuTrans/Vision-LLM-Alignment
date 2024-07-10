@@ -25,14 +25,20 @@ from transformers import AdamW
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from utils.data import build_dataset, DataCollatorPadToMaxLen, split_dataset, shuffle_dataset
-from utils.utils import print_rank_0, to_device, save_hf_format, set_random_seed, get_all_reduce_mean, get_optimizer_grouped_parameters, save_zero_three_model
+from utils.utils import (
+    print_rank_0, to_device, 
+    save_hf_format, set_random_seed, 
+    get_all_reduce_mean, 
+    get_optimizer_grouped_parameters, 
+    save_zero_three_model
+)
 from utils.ds_utils import get_train_ds_config
 from utils.model import build_model
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=
-        "Finetune a transformers model on a multi-modal task")
+        'Finetune a transformers model on a multi-modal task')
 
     parser.add_argument('--data_path',
                         type=str,
@@ -51,15 +57,15 @@ def parse_args():
                 help='Where the image data are stored.')
 
     parser.add_argument(
-        "--data_train_split_ratio",
+        '--data_train_split_ratio',
         type=float,
         default=0.9,
-        help="Ratio of dataset to be splitted as train data. The remaining becomes eval data.",
+        help='Ratio of dataset to be splitted as train data. The remaining becomes eval data.',
     )
     parser.add_argument(
-        "--is_sft_stage",
+        '--is_sft_stage',
         action='store_true',
-        help=""
+        help=''
     )
     parser.add_argument('--offload',
                         action='store_true',
@@ -89,105 +95,105 @@ def parse_args():
                         'means use 1 sample for each datapoint')
     
     parser.add_argument(
-        "--max_num_image_per_sample",
+        '--max_num_image_per_sample',
         type=int,
         default=8,
-        help="The maximum number of images per sample.",
+        help='The maximum number of images per sample.',
     )
     parser.add_argument(
-        "--per_device_train_batch_size",
+        '--per_device_train_batch_size',
         type=int,
         default=2,
-        help="Batch size (per device) for the training dataloader.",
+        help='Batch size (per device) for the training dataloader.',
     )
     parser.add_argument(
-        "--per_device_eval_batch_size",
+        '--per_device_eval_batch_size',
         type=int,
         default=2,
-        help="Batch size (per device) for the evaluation dataloader.",
+        help='Batch size (per device) for the evaluation dataloader.',
     )
     parser.add_argument(
-        "--max_seq_len",
+        '--max_seq_len',
         type=int,
         default=4096,
-        help="The maximum sequence length, note that image tokens are included.",
+        help='The maximum sequence length, note that image tokens are included.',
     )
     parser.add_argument(
-        "--learning_rate",
+        '--learning_rate',
         type=float,
         default=1e-3,
         help=
-        "Initial learning rate (after the potential warmup period) to use.",
+        'Initial learning rate (after the potential warmup period) to use.',
     )
     parser.add_argument(
-        "--learning_rate_pretraining_components",
+        '--learning_rate_pretraining_components',
         type=float,
         default=0,
         help=
-        "Initial learning rate for pre-trained weight, e.g., embedding (after the potential warmup period) to use.",
+        'Initial learning rate for pre-trained weight, e.g., embedding (after the potential warmup period) to use.',
     )
-    parser.add_argument("--weight_decay",
+    parser.add_argument('--weight_decay',
                         type=float,
                         default=0.,
-                        help="Weight decay to use.")
-    parser.add_argument("--num_train_epochs",
+                        help='Weight decay to use.')
+    parser.add_argument('--num_train_epochs',
                         type=int,
                         default=6,
-                        help="Total number of training epochs to perform.")
+                        help='Total number of training epochs to perform.')
     parser.add_argument(
-        "--gradient_accumulation_steps",
+        '--gradient_accumulation_steps',
         type=int,
         default=1,
         help=
-        "Number of updates steps to accumulate before performing a backward/update pass.",
+        'Number of updates steps to accumulate before performing a backward/update pass.',
     )
     parser.add_argument(
-        "--lr_scheduler_type",
+        '--lr_scheduler_type',
         type=SchedulerType,
-        default="cosine",
-        help="The scheduler type to use.",
+        default='cosine',
+        help='The scheduler type to use.',
         choices=[
-            "linear", "cosine", "cosine_with_restarts", "polynomial",
-            "constant", "constant_with_warmup"
+            'linear', 'cosine', 'cosine_with_restarts', 'polynomial',
+            'constant', 'constant_with_warmup'
         ],
     )
     parser.add_argument(
-        "--num_warmup_steps",
+        '--num_warmup_steps',
         type=float,
         default=0,
-        help="Number of steps (>1) or ratios (<=1) for the warmup in the lr scheduler.")
-    parser.add_argument("--output_dir",
+        help='Number of steps (>1) or ratios (<=1) for the warmup in the lr scheduler.')
+    parser.add_argument('--output_dir',
                         type=str,
                         default=None,
-                        help="Where to store the model.")
-    parser.add_argument("--seed",
+                        help='Where to store the model.')
+    parser.add_argument('--seed',
                         type=int,
                         default=1234,
-                        help="A seed for reproducible training.")
-    parser.add_argument("--local_rank",
+                        help='A seed for reproducible training.')
+    parser.add_argument('--local_rank',
                         type=int,
                         default=-1,
-                        help="local_rank for distributed training on gpus")
+                        help='local_rank for distributed training on gpus')
     parser.add_argument('--gradient_checkpointing',
                         action='store_true',
                         help='Enable HF gradient checkpointing for model.')
     parser.add_argument(
-        "--lm_model_name_or_path",
+        '--lm_model_name_or_path',
         type=str,
         help=
-        "Path to pretrained model or model identifier from huggingface.co/models.")
-    parser.add_argument("--vision_model_name_or_path", default="openai/clip-vit-large-patch14", type=str)
-    parser.add_argument("--model_architecture", default="default", type=str)
+        'Path to pretrained model or model identifier from huggingface.co/models.')
+    parser.add_argument('--vision_model_name_or_path', default='openai/clip-vit-large-patch14', type=str)
+    parser.add_argument('--model_architecture', default='default', type=str)
     parser.add_argument(
-        "--enable_mmca_attention",
+        '--enable_mmca_attention',
         action='store_true',
-        help="enable the new proposed attn, which is similar to cross attention",
+        help='enable the new proposed attn, which is similar to cross attention',
     )
     parser.add_argument(
-        "--vis_proj",
+        '--vis_proj',
         type=str,
         default='baseline',
-        help="[baseline, vit, or perceiver], used to projection vision feature to LLM embedding",
+        help='[baseline, vit, or perceiver], used to projection vision feature to LLM embedding',
     )
     # deepspeed features
     parser.add_argument(
@@ -196,39 +202,39 @@ def parse_args():
         default=0,
         help='ZeRO optimization stage for Actor model (and clones).')
     parser.add_argument(
-        "--precision",
+        '--precision',
         type=str,
-        choices=["fp16", "bf16"],
-        default="fp16",
+        choices=['fp16', 'bf16'],
+        default='fp16',
         help=
-        "FP16 or BF16 precision. FP16 is recommended for typical use cases. BF16 is good for large models",
+        'FP16 or BF16 precision. FP16 is recommended for typical use cases. BF16 is good for large models',
     )
     parser.add_argument('--enable_tensorboard',
                         action='store_true',
                         help='Enable tensorboard logging')
     ## LoRA for efficient training setting
-    parser.add_argument("--lang_lora_dim",
+    parser.add_argument('--lang_lora_dim',
                         type=int,
                         default=0,
-                        help="Use LoRA for fine-tuning language decoder (> 0).")
-    parser.add_argument("--lang_lora_module_name",
+                        help='Use LoRA for fine-tuning language decoder (> 0).')
+    parser.add_argument('--lang_lora_module_name',
                         type=str,
-                        default="model.layers.",
-                        help="The scope name of the target LoRA parameters.")
-    parser.add_argument("--vis_lora_dim",
+                        default='model.layers.',
+                        help='The scope name of the target LoRA parameters.')
+    parser.add_argument('--vis_lora_dim',
                         type=int,
                         default=0,
-                        help="Use LoRA for fine-tuning visual encoder (> 0).")
-    parser.add_argument("--vis_lora_module_name",
+                        help='Use LoRA for fine-tuning visual encoder (> 0).')
+    parser.add_argument('--vis_lora_module_name',
                         type=str,
-                        default="encoder.layers.",
-                        help="The scope name of the target LoRA parameters.")
+                        default='encoder.layers.',
+                        help='The scope name of the target LoRA parameters.')
     parser.add_argument('--only_optimize_lora',
                         action='store_true',
                         help='Only optimize the LoRA parameters.')
     parser.add_argument('--template',
                         type=str,
-                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+                        choices=['default', 'llama_2', 'llama_3', 'llama_3', 'vicuna'],)
     parser.add_argument(
         '--eval_step',
         type=int,
@@ -237,7 +243,7 @@ def parse_args():
     parser.add_argument(
         '--from_checkpoint',
         type=str,
-        default="./basemodel/",
+        default='./basemodel/',
         help='Specifying the checkpoint directory to be loaded.')
     parser.add_argument(
         '--vis_encoder_update',
@@ -254,7 +260,7 @@ def parse_args():
     if args.learning_rate_pretraining_components == 0.0:
         # if we do not provide special learning rate, mainly for embedding, the same lr is applied
         args.learning_rate_pretraining_components = args.learning_rate
-    assert args.num_warmup_steps >= 0, "--num_warmup_steps must be >= 0"
+    assert args.num_warmup_steps >= 0, '--num_warmup_steps must be >= 0'
     if 'qwen' in args.vision_model_name_or_path.lower():
         assert args.vis_proj == 'baseline', "qwen's model only support baseline vis_proj as it has the perceiver module inside"
     return args
@@ -263,10 +269,10 @@ def main():
     args = parse_args()
 
     if args.local_rank == -1:
-        device = torch.device("cuda")
+        device = torch.device('cuda')
     else:
         torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
+        device = torch.device('cuda', args.local_rank)
         # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         deepspeed.init_distributed()
 
@@ -284,9 +290,13 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
-                                              fast_tokenizer=True)
-    tokenizer.padding_side = 'left'
+    if args.model_architecture == 'default':
+        tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
+                                                fast_tokenizer=True)
+        tokenizer.padding_side = 'left'
+    else:
+        tokenizer = None
+
     model, image_processor, tokenizer = build_model(
             text_tokenizer=tokenizer,
             args=args,
@@ -296,10 +306,10 @@ def main():
         
     # Prepare the data
     if len(args.dataset_samples) < len(args.dataset_names):
-        assert len(args.dataset_samples) == 1, "when args.dataset_samples is not the same length as args.dataset_names, it should be only one number"
+        assert len(args.dataset_samples) == 1, 'when args.dataset_samples is not the same length as args.dataset_names, it should be only one number'
         args.dataset_samples =  [args.dataset_samples[0]] * len(args.dataset_names)
     if len(args.dataset_concatenate_samples) < len(args.dataset_names):
-        assert len(args.dataset_concatenate_samples) == 1, "when args.dataset_concatenate_samples is not the same length as args.dataset_names, it should be only one number"
+        assert len(args.dataset_concatenate_samples) == 1, 'when args.dataset_concatenate_samples is not the same length as args.dataset_names, it should be only one number'
         args.dataset_concatenate_samples =  [args.dataset_concatenate_samples[0]] * len(args.dataset_names)
     # convert to int
     args.dataset_concatenate_samples = [int(i) for i in args.dataset_concatenate_samples]
@@ -326,14 +336,14 @@ def main():
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=False),
-        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     # Split weights in two groups, one with weight decay and the other not.
@@ -367,9 +377,9 @@ def main():
 
     start_epoch = 0
     # let load checkpoint 
-    if os.path.exists(os.path.join(args.from_checkpoint, 'latest')):
+    if os.path.exists(args.from_checkpoint) and args.model_architecture=='default':
         # we have the deepspeed chekpoint so it is a resumed job
-        print_rank_0(f"load checkpoint from {args.from_checkpoint}")
+        print_rank_0(f'load checkpoint from {args.from_checkpoint}')
         _, client_state = model.load_checkpoint(args.from_checkpoint)
 
     if args.gradient_checkpointing:
@@ -381,13 +391,22 @@ def main():
         for step, batch in enumerate(tqdm(eval_dataloader)):
             with torch.no_grad():
                 batch = to_device(batch, device)
-                loss = model(
-                    batch["image"].half() ,
-                    batch["input_ids"],
-                    attention_mask=batch["attention_mask"],
-                    input_labels=batch["labels"],
-                    image_num=batch["image_num"],
-                )[0]
+                if args.model_architecture=="default":
+                    loss = model(
+                        batch["image"].half(),
+                        batch["input_ids"],
+                        attention_mask=batch["attention_mask"],
+                        input_labels=batch["labels"],
+                        image_num=batch["image_num"],
+                    )[0]
+                elif args.model_architecture=="llava":
+                    loss = model(
+                        input_ids=batch["input_ids"],
+                        pixel_values=batch["image"].half(),
+                        attention_mask=batch["attention_mask"],
+                        labels=batch["labels"],
+                        return_dict=False
+                    )[0]
             acc_loss += loss
         model.train()
         acc_loss = get_all_reduce_mean(acc_loss).item()
@@ -396,21 +415,21 @@ def main():
         return ave_loss
     
     # Train!
-    print_rank_0("***** Running training *****", args.global_rank)
+    print_rank_0('***** Running training *****', args.global_rank)
     global_step = 0
     for epoch in range(start_epoch, args.num_train_epochs):
         print_rank_0(
-            f"Beginning of Epoch {epoch+1}/{args.num_train_epochs}, Total Micro Batches {len(train_dataloader)}",
+            f'Beginning of Epoch {epoch+1}/{args.num_train_epochs}, Total Micro Batches {len(train_dataloader)}',
             args.global_rank)
         model.train()
         acc_loss = 0
         for step, batch in enumerate(tqdm(train_dataloader)):
-            batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
+            batch = to_device(batch, device) 
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             labels = batch["labels"]
-            if args.model_architecture=='default':
+            if args.model_architecture=="default":
                 loss = model(
                     images,
                     input_ids,
@@ -425,14 +444,14 @@ def main():
                     pixel_values=images,
                     attention_mask=attention_mask,
                     labels=labels,
-                    output_hidden_states=True
+                    return_dict=False
                 )[0]
             model.backward(loss)
             model.step()
             
             acc_loss += loss
             acc_loss = get_all_reduce_mean(acc_loss).item()
-            print_rank_0(f'Epoch {epoch+1}, Step: {step}, Loss:{acc_loss/(step+1)}', args.global_rank)
+            print_rank_0(f"Epoch {epoch+1}, Step: {step}, Loss:{acc_loss/(step+1)}", args.global_rank)
 
             global_step += 1
 
@@ -444,23 +463,23 @@ def main():
         evaluation(model, eval_dataloader)
 
         if args.global_rank == 0:
-            save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
+            save_hf_format(model, tokenizer, args, f"epoch-{epoch}")
         if args.zero_stage == 3:
             # For zero stage 3, each gpu only has a part of the model, so we need a special save function
             save_zero_three_model(model,
                                 args.global_rank,
                                 args.output_dir,
                                 zero_stage=args.zero_stage, 
-                                sub_folder=f'epoch-{epoch}')
+                                sub_folder=f"epoch-{epoch}")
         if args.zero_stage in [1,2]:
             # https://deepspeed.readthedocs.io/en/latest/model-checkpointing.html
             model_to_save = model.module if hasattr(model,
                                                     'module') else model
             lean_state_dict = deepspeed.checkpoint.utils.clone_tensors_for_torch_save(model_to_save.state_dict())
-            os.makedirs(f'{args.output_dir}/epoch-{epoch}', exist_ok=True)
-            WEIGHTS_NAME = "pytorch_model.bin"
+            os.makedirs(f"{args.output_dir}/epoch-{epoch}", exist_ok=True)
+            WEIGHTS_NAME = 'pytorch_model.bin'
             output_model_file = os.path.join(f'{args.output_dir}/epoch-{epoch}', WEIGHTS_NAME)
             torch.save(lean_state_dict, output_model_file)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

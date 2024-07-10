@@ -62,11 +62,14 @@ class LlavaDataset(VQADataset):
         
         res_list_all = []
         for ann in self.annotation[index]:
-            image = self.process_image(
-                ann,
-                data_debug_path=self.data_debug_path,
-                data_debug_counter=self.data_debug_counter
-            )
+            if ann['image'] is not None:
+                image = self.process_image(
+                    ann,
+                    data_debug_path=self.data_debug_path,
+                    data_debug_counter=self.data_debug_counter
+                )
+            else:
+                image = None
             text_list = self.process_text(
                 ann,
                 data_debug_path=self.data_debug_path,
@@ -150,9 +153,13 @@ class LlavaComparsionDataset(VQADataset):
         outputs = []
         res_list = []
         for ann in self.annotation[index]:
-            image = self.process_image(ann,
-                                    data_debug_path=self.data_debug_path,
-                                    data_debug_counter=self.data_debug_counter)
+            if ann['image'] != None:
+                image = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
+            else:
+                image = None
+            
             text = self.process_text(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter,
@@ -215,7 +222,7 @@ class LlavaPPODataset(VQADataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=512,
+            max_length=768,
         )
         if (res["input_ids"][-1] == self.tokenizer.eos_token_id) and (not self.add_eos):
             res["input_ids"] = res["input_id"][0:-1]
@@ -225,7 +232,7 @@ class LlavaPPODataset(VQADataset):
         # ignore instruction_token
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
-                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=512
+                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=768
             )
             labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]) :]
 
@@ -310,7 +317,7 @@ class LlavaPredictDataset(VQADataset):
     def __getitem__(self, index):
         res_list = []
         for ann in self.annotation[index]:
-            if ann['image'] != None:                
+            if ann['image'] != None:
                 image = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
                                         data_debug_counter=self.data_debug_counter)
@@ -319,13 +326,12 @@ class LlavaPredictDataset(VQADataset):
                 image = None
                 with_image = False
 
-
             text = self.process_text(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter,
                                     first_message=(not res_list),
                                     with_image=with_image)
-            
+     
             self.data_debug_counter += 1
             res = self.tokenize(text)
             res.update(image=image)
@@ -358,10 +364,11 @@ class LlavaPredictDataset(VQADataset):
         for res in res_list:
             # need to check if it has image or not
             if self.image_token_dict[DST.DEFAULT_HUMAN_IMAGE_PRETOKEN] in res["input_ids"]:
-                image_number += 1
+                image_number += 1 
                 res["input_ids"], res["attention_mask"], res["labels"] = find_index_and_replace(res["input_ids"], res["attention_mask"], res["labels"], image_number)
                 original_output["image"] = original_output["image"] + [res["image"]]
                 # cat res to original_output 
+
             original_output["input_ids"] = original_output["input_ids"] + res["input_ids"]
             original_output["attention_mask"] = original_output["attention_mask"] + res["attention_mask"]
             original_output["labels"] = original_output["labels"] + res["labels"]

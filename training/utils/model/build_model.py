@@ -1,7 +1,7 @@
-from transformers import AutoProcessor, LlavaForConditionalGeneration
-from transformers import AutoTokenizer
+from .third_party_model.hf_model.modeling_llava import LlavaForConditionalGeneration
+from transformers import AutoTokenizer, AutoProcessor
 from .modeling_dsvl import create_dsvl_model_and_transforms
-
+from ..data import DST
 # You can design (or specify) the architecture of vision LLM.
 def build_model(text_tokenizer=None,
                 ds_config=None,
@@ -31,6 +31,10 @@ def build_model(text_tokenizer=None,
             model.language_model.requires_grad_(True)
         else:
             model.language_model.requires_grad_(False)
+        
+        tokenizer.add_tokens(DST.special_token_list, special_tokens=True)
+        model.language_model.config.vocab_size = len(tokenizer)
+        model.language_model.resize_token_embeddings(len(tokenizer))
 
         return model, image_processor, tokenizer
     

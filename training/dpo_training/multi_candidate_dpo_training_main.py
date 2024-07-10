@@ -29,8 +29,8 @@ sys.path.append(
 from utils.data import build_dataset, DataCollatorPadToMaxLenForRewardModel, split_dataset, shuffle_dataset, DST
 from utils.utils import print_rank_0, to_device, save_hf_format, set_random_seed, get_all_reduce_mean, get_optimizer_grouped_parameters, save_zero_three_model
 from utils.ds_utils import get_train_ds_config
-from utils.module.lora import convert_linear_layer_to_lora, only_optimize_lora_parameters, fuse_lora, unfuse_lora
-from utils.model import create_dsvl_model_and_transforms
+
+from utils.model import build_model
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -57,6 +57,10 @@ def parse_args():
                         help="Temperature parameter for the DPO loss, typically something in the range of 0.1 to 0.5. We ignore the reference model as beta -> 0."
 
     )
+    parser.add_argument('--model_architecture',
+                type=str,
+                default='default',
+                help='Where the image data are stored.')
     parser.add_argument("--label_smoothing",
                         type=float,
                         default=0.0,
@@ -206,26 +210,6 @@ def parse_args():
     parser.add_argument('--enable_tensorboard',
                         action='store_true',
                         help='Enable tensorboard logging')
-    ## LoRA for efficient training setting
-    parser.add_argument("--lang_lora_dim",
-                        type=int,
-                        default=0,
-                        help="Use LoRA for fine-tuning language decoder (> 0).")
-    parser.add_argument("--lang_lora_module_name",
-                        type=str,
-                        default="model.layers.",
-                        help="The scope name of the target LoRA parameters.")
-    parser.add_argument("--vis_lora_dim",
-                        type=int,
-                        default=0,
-                        help="Use LoRA for fine-tuning visual encoder (> 0).")
-    parser.add_argument("--vis_lora_module_name",
-                        type=str,
-                        default="encoder.layers.",
-                        help="The scope name of the target LoRA parameters.")
-    parser.add_argument('--only_optimize_lora',
-                        action='store_true',
-                        help='Only optimize the LoRA parameters.')
     parser.add_argument(
         '--vis_encoder_update',
         action='store_true',
@@ -285,33 +269,12 @@ def main():
 
     ds_config = get_train_ds_config(args, offload=False, stage=2)
 
-    model, image_processor, tokenizer = create_dsvl_model_and_transforms(
+    model, image_processor, tokenizer = build_model(
         text_tokenizer=tokenizer_origin,
         args=args,
         ds_config=ds_config
     )
 
-    if args.lang_lora_dim > 0:
-        model.lang_decoder = convert_linear_layer_to_lora(
-            model.lang_decoder,
-            args.lang_lora_module_name,
-            args.lang_lora_dim
-        )
-        if args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(
-                model.lang_decoder
-            )
-
-    if args.vis_lora_dim > 0:
-        model.vis_encoder = convert_linear_layer_to_lora(
-            model.vis_encoder, 
-            args.vis_lora_module_name,
-            args.vis_lora_dim
-        )
-        if args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(
-                model.vis_encoder
-            )
     print_rank_0(model, args.global_rank)
 
     # prepare the data
@@ -345,7 +308,7 @@ def main():
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     # Split weights in two groups, one with weight decay and the other not.
@@ -370,8 +333,8 @@ def main():
         num_training_steps=args.num_train_epochs * num_update_steps_per_epoch,
     )
 
-    print_rank_0("load actor model............")
-    model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    # print_rank_0("load actor model............")
+    # model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_config = get_train_ds_config(args, offload=args.offload,
                                     stage=args.zero_stage)
@@ -401,36 +364,14 @@ def main():
         stage=2 
     )
 
-    ref_model , _, _ = create_dsvl_model_and_transforms(
+    ref_model , _, _ = build_model(
         text_tokenizer=tokenizer_origin,
         args=args,
         ds_config=ds_ref_config_load
     )
 
-    if args.lang_lora_dim > 0:
-        ref_model.lang_encoder = convert_linear_layer_to_lora(
-            ref_model.lang_decoder,
-            args.lang_lora_module_name,
-            args.lang_lora_dim
-        )
-        if args.only_optimize_lora:
-            ref_model.lang_decoder = only_optimize_lora_parameters(
-                ref_model.lang_decoder
-            )
-    
-    if args.vis_lora_dim > 0:
-        ref_model.vis_encoder = convert_linear_layer_to_lora(
-            ref_model.vis_encoder,
-            args.vis_lora_module_name,
-            args.vis_lora_dim
-        )
-        if args.only_optimize_lora:
-            ref_model.vis_encoder = only_optimize_lora_parameters(
-                ref_model.vis_encoder
-            )
-
     print_rank_0("load ref model............")
-    ref_model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    # ref_model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_ref_config_training = get_train_ds_config(
         offload=args.offload,
@@ -458,29 +399,52 @@ def main():
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             labels = batch["labels"]
-
-            outputs_logits = model(images,
-                input_ids,
-                attention_mask=attention_mask,
-                input_labels=labels,
-                image_num=batch["image_num"])[1]
-
-            with torch.no_grad():
-                ref_outputs_logits = ref_model(
-                    images,
+            image_nums = batch['image_num']
+    
+            if args.model_architecture == "default":
+                outputs_logits = model(images,
                     input_ids,
                     attention_mask=attention_mask,
                     input_labels=labels,
-                    image_num=batch["image_num"],
-                )[1]
+                    image_num=batch["image_num"])[1]
+
+                with torch.no_grad():
+                    ref_outputs_logits = ref_model(
+                        images,
+                        input_ids,
+                        attention_mask=attention_mask,
+                        input_labels=labels,
+                        image_num=batch["image_num"],
+                    )[1]
+
+            elif args.model_architecture=="llava":
+                outputs = model(
+                    input_ids=input_ids,
+                    pixel_values = images,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    output_hidden_states=True)
+                outputs_logits = outputs.logits_drop_image
+                
+                with torch.no_grad():
+                    ref_outputs = ref_model(
+                    input_ids=input_ids,
+                    pixel_values = images,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    output_hidden_states=True)
+                    ref_outputs_logits = ref_outputs.logits_drop_image
+
+
             logprobs = gather_log_probs(outputs_logits[:, :-1, :], input_ids[:, 1:], labels)
             ref_logprobs = gather_log_probs(ref_outputs_logits[:, :-1, :], input_ids[:,1:], labels)
             
-            if logprobs.shape[0] != args.per_device_train_batch_size * args.ranked_candidate_num:
-                print("check the number of the candidate, chosen and rejected !!!")
-                del logprobs
-                del ref_logprobs
-                continue
+            # batch 
+            # if logprobs.shape[0] != args.per_device_train_batch_size * args.ranked_candidate_num:
+            #     print("check the number of the candidate, chosen and rejected !!!")
+            #     del logprobs
+            #     del ref_logprobs
+            #     continue
 
             # use warmupbeta
             if_del_reference = False
@@ -532,7 +496,7 @@ def main():
             global_step += 1
             print_rank_0(f'Epoch {epoch}, Step: {(step)}, Loss:{dpo_training_loss/global_step}', args.global_rank)
         
-        model = fuse_lora(model)
+        
         if args.global_rank == 0:
             save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}')
         if args.zero_stage == 3:

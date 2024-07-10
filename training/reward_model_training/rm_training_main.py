@@ -174,6 +174,7 @@ def parse_args():
         required=True,
     )
     parser.add_argument("--vision_reward_model_name_or_path", default="openai/clip-vit-large-patch14", type=str)
+    parser.add_argument("--model_architecture", default="default", type=str)
     parser.add_argument(
         "--enable_mmca_attention",
         action='store_true',
@@ -230,7 +231,7 @@ def parse_args():
                         help="Total number of candidate LLMs.")
     parser.add_argument('--template',
                     type=str,
-                    choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+                    choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
     parser.add_argument(
         '--from_checkpoint',
         type=str,
@@ -288,10 +289,13 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer = AutoTokenizer.from_pretrained(args.lm_reward_model_name_or_path,
-                                              fast_tokenizer=True)
+    if args.model_architecture=="default":
+        tokenizer = AutoTokenizer.from_pretrained(args.lm_reward_model_name_or_path,
+                                                fast_tokenizer=True)
 
-    tokenizer.padding_side = 'right'
+        tokenizer.padding_side = 'right'
+    else:
+        tokenizer = None
 
     model, image_processor, tokenizer = create_reward_or_critic_model(
             text_tokenizer=tokenizer,
@@ -378,14 +382,14 @@ def main():
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=False),
-        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     # Split weights in two groups, one with weight decay and the other not.

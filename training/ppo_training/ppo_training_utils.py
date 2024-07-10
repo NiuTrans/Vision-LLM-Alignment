@@ -1,3 +1,6 @@
+from multiprocessing import process
+from platform import processor
+from networkx import general_random_intersection_graph
 import torch
 import torch.nn.functional as F
 
@@ -39,12 +42,58 @@ def sampling(actor_model,
         sub_attention_mask = attention_mask[index]
         
         sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
-
+        # from training.utils.pdb import pdb; pdb.set_trace()
         res = actor_model.generate(sub_img, sub_lang, 
                                     generation_length=max_new_tokens, 
                                     generation_kwargs=generation_kwargs)
         
         all_res.append(res)
+    actor_model.train()
+    return all_res
+
+def sampling_llava(actor_model,
+            img, lang, 
+            attention_mask=None,
+            pad_token_id=0,
+            topk=50,
+            topp=0.95,
+            do_sample=True,
+            max_new_tokens=384,
+            num_return_sequences=1,
+            temperature=0.75,
+            processor=None):
+    
+    generation_kwargs={
+        "top_k": topk,
+        "top_p": topp,
+        "do_sample": do_sample,
+        "max_new_tokens": max_new_tokens,
+        "num_return_sequences": num_return_sequences,
+        "temperature": temperature
+    }
+    max_new_tokens = generation_kwargs["max_new_tokens"]
+    generation_kwargs.pop("max_new_tokens")
+
+    batch_size = lang.size()[0]
+
+    all_res = []
+ 
+    actor_model.eval()
+    for index in range(batch_size):
+        try:
+            sub_img = img[index].unsqueeze(0)
+        except:
+            sub_img = [img[index]]   # reused by the prediction, and there is a situation where the image is None.
+        
+        sub_attention_mask = attention_mask[index]
+        sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
+
+        if sub_img == [None]:
+            res = actor_model.generate(input_ids=sub_lang, max_new_tokens=max_new_tokens, generation_kwargs=generation_kwargs)[0][lang.shape[1]:]
+        else:
+            res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, generation_kwargs=generation_kwargs)[0][lang.shape[1]:]
+        res_text = processor.decode(res,skip_special_tokens=True)       
+        all_res.append([res, res_text])
     actor_model.train()
     return all_res
 

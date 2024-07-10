@@ -5,6 +5,7 @@
 # DeepSpeed Team
 import argparse
 import os
+from platform import processor
 import sys
 from tqdm import tqdm
 import json
@@ -22,12 +23,12 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)) + "/training")
 
-from training.ppo_training.ppo_training_utils import sampling
+from training.ppo_training.ppo_training_utils import sampling, sampling_llava
 from training.utils.data import build_dataset, DataCollatorPadToMaxLenForPrediction
 from training.utils.utils import print_rank_0, to_device, set_random_seed, get_all_reduce_mean
 from training.utils.ds_utils import get_train_ds_config
 from training.utils.module.lora import convert_linear_layer_to_lora, only_optimize_lora_parameters, fuse_lora, unfuse_lora
-from training.utils.model import create_dsvl_model_and_transforms
+from training.utils.model import create_dsvl_model_and_transforms, build_model
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -121,6 +122,14 @@ def parse_args():
     parser.add_argument('--gradient_checkpointing',
                         action='store_true',
                         help='Enable HF gradient checkpointing for model.')
+    
+    parser.add_argument(
+        "--model_architecture",
+        type=str,
+        default="default",
+        help=
+        "Architecture of pretrained model or model identifier from huggingface.co/models.",
+    )   
     parser.add_argument(
         "--lm_model_name_or_path",
         type=str,
@@ -167,7 +176,7 @@ def parse_args():
                         help='Only optimize the LoRA parameters.')
 
     ## from ppo training
-    parser.add_argument('--sft_model_ckpt_path',
+    parser.add_argument('--from_checkpoint',
                         type=str,
                         required=True,
                         help='Path to the trained SFT model.')
@@ -188,7 +197,7 @@ def parse_args():
     
     parser.add_argument('--template',
                         type=str,
-                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
     
     parser.add_argument(
         "--max_new_tokens",
@@ -257,17 +266,21 @@ def main():
         args=args,
         stage=2)
 
-    model, image_processor, tokenizer = create_dsvl_model_and_transforms(
+    print_rank_0("load model............")
+
+    model, image_processor, tokenizer = build_model(
                                         text_tokenizer=tokenizer,
                                         args=args,
                                         ds_config=ds_config)
     
-    print_rank_0("load model............")
-    
-    model.load_state_dict(torch.load(os.path.join(args.sft_model_ckpt_path, 'pytorch_model.bin'), map_location='cpu'), strict=False) 
 
-    model.projection = model.projection.to('cuda')
-    model.vis_encoder = model.vis_encoder.to('cuda')
+    if args.model_architecture=='default':
+        model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False) 
+
+        model.projection = model.projection.to('cuda')
+        model.vis_encoder = model.vis_encoder.to('cuda')
+    else:
+        model.to('cuda')
     
     # Prepare the data
     if len(args.dataset_samples) < len(args.dataset_names):
@@ -329,17 +342,26 @@ def main():
         images = batch["image"].half() 
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-
         image_num = batch["image_num"]
         
         if image_num[0] == 0:
             images = [None]
 
-        sampling_ans = sampling(model, 
-                                images, input_ids, 
-                                attention_mask=attention_mask, 
-                                pad_token_id=tokenizer.pad_token_id,
-                                **generation_kwargs)
+        if args.model_architecture == 'default':
+            sampling_ans = sampling(model, 
+                                    images, input_ids, 
+                                    attention_mask=attention_mask, 
+                                    pad_token_id=tokenizer.pad_token_id,
+                                    **generation_kwargs)
+        elif args.model_architecture == 'llava':
+            sampling_ans = sampling_llava(model, 
+                                    images, input_ids, 
+                                    attention_mask=attention_mask, 
+                                    pad_token_id=tokenizer.pad_token_id,
+                                    processor=tokenizer,
+                                    **generation_kwargs)
+        else:
+            raise NotImplementedError("Not support newly added model architecture")
         
         with open(args.output_path, "a") as trg:
             for i in range(args.batch_size):       
@@ -347,7 +369,7 @@ def main():
                 ref_image = reference_dict[id]['image'] if reference_dict[id]['image'] is not None else "None"
                 ref_label = reference_dict[id]['label'] if 'label' in reference_dict[id].keys() else "None"
                 line = " ||| ".join([id, ref_image.strip(), 
-                        tokenizer.decode(input_ids[i]).replace("\n", "\\n"), 
+                        tokenizer.decode(input_ids[i], skip_special_tokens=True, clean_up_tokenization_spaces=True).replace("\n", "\\n"), 
                         sampling_ans[i][1].replace("\n", "\\n"), 
                         ref_label.strip()]) + "\n"
                 print(line)

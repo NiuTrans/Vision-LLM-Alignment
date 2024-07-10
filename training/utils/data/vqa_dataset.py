@@ -142,7 +142,7 @@ class VQADataset(Dataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=512,
+            max_length=768,
         )
         if res["input_ids"][-1] != self.tokenizer.eos_token_id and self.add_eos:
             res["input_ids"].append(self.tokenizer.eos_token_id)
@@ -152,7 +152,7 @@ class VQADataset(Dataset):
         # ignore instruction_token
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
-                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=512
+                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=768
             )
             labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]) :]
 
@@ -207,7 +207,6 @@ class VQADataset(Dataset):
 
     def __getitem__(self, index):
         res_list = []
-        from training.utils import pdb;pdb.set_trace()
         for ann in self.annotation[index]:
             image = self.process_image(ann,
                                     data_debug_path=self.data_debug_path,

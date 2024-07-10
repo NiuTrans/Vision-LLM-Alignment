@@ -41,7 +41,8 @@ VICUNA_HUMAN_QUESTION_PRETOKEN = "USER: "
 VICUNA_HUMAN_QUESTION_PRETOKEN_END = "</s>"
 VICUNA_ASSISTANT_TOKEN = " ASSISTANT: "
 
-
+LLAVA_HUMAN_QUESTION_PRETOKEN = "USER: "
+LLAVA_ASSISTANT_TOKEN = "\nASSISTANT:"
 
 IMAGE_NUM = '<image#x>'
 IMAGE_NUM_1 = '### Image 1:'
@@ -102,7 +103,11 @@ VICUNA_TEMPLATE = {
     "prompt_qa_without_image": f'''{VICUNA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{VICUNA_ASSISTANT_TOKEN}''',
 }
 
-
+LLAVA_TEMPLATE = {
+    "description": "Template for the LlaVA models.",
+    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_HUMAN_IMAGE_PRETOKEN}{DEFAULT_IMAGE_TOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
+    "prompt_qa_without_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
+}
 
 class Prompter:
     def __call__(self, question, with_image=True, first_message=False, num_images=-1, options=None, template="default"):
@@ -120,6 +125,8 @@ class Prompter:
                     res = LLAMA_3_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template == "vicuna":
                     res = VICUNA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
+                elif template == "llava":
+                    res = LLAVA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 
                 if num_images >= 1:
                     tmp_dict = {
@@ -143,6 +150,8 @@ class Prompter:
                     res = LLAMA_3_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template == "vicuna":
                     res = VICUNA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
+                elif template == "llava":
+                    res = LLAVA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
             
             
             if first_message:
@@ -154,7 +163,7 @@ class Prompter:
                     res = SYSTEM_MESSEGE_LLAMA2 + res.replace(f"{LLAMA2_HUMAN_QUESTION_PRETOKEN}","",1)
                 elif template == "vicuna":
                     res = SYSTEM_MESSEGE_VICUNA + res
-                    
+
         return res
 
     def get_response(self, output: str) -> str:

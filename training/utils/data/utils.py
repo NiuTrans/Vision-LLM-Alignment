@@ -38,9 +38,10 @@ def save_debug_text(text_to_save, data_debug_path, data_debug_counter, rank):
 
 class DataCollatorPadToMaxLen:
 
-    def __init__(self, max_token_len, pad_token_id):
+    def __init__(self, max_token_len, pad_token_id, image_size):
         self.max_token_len = max_token_len
         self.pad_token_id = pad_token_id
+        self.image_size = image_size # {'height': 336, 'width': 336}
 
     def __call__(self, data):
         batch = {}
@@ -54,8 +55,17 @@ class DataCollatorPadToMaxLen:
         attention_mask = pad_sequence([default_collate(f['attention_mask']) for f in data],
                                         padding_value=0,
                                         batch_first=True)
-        image = torch.concat([default_collate(f['image']) for f in data], dim=0).reshape((-1,) + data[0]["image"][0].shape[-3:])
-        image_num = [f['image_num'] for f in data] 
+        image_num = []
+        image_data = []
+        for single_data in data:
+            if single_data['image'][0] is None:
+                image_data.append(torch.zeros(1,3,self.image_size['height'],self.image_size['width'])) 
+                image_num.append(0)
+            else:
+                image_data.append(default_collate(single_data['image']))
+                image_num.append(single_data['image_num'])
+        image = torch.concat(image_data,dim=0).reshape((-1,)+image_data[0].shape[-3:])
+
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
@@ -65,9 +75,10 @@ class DataCollatorPadToMaxLen:
 
 class DataCollatorPadToMaxLenForRewardModel:
 
-    def __init__(self, max_token_len, pad_token_id):
+    def __init__(self, max_token_len, pad_token_id, image_size):
         self.max_token_len = max_token_len
         self.pad_token_id = pad_token_id
+        self.image_size = image_size
 
     def __call__(self, data):
         batch = {}
@@ -84,9 +95,19 @@ class DataCollatorPadToMaxLenForRewardModel:
         attention_mask = pad_sequence([default_collate(f['attention_mask']) for f in data],
                                         padding_value=0,
                                         batch_first=True)
+        
+        image_num = []
+        image_data = []
+        for single_data in data:
+            if single_data['image'][0] is None:
+                image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width'])) 
+                image_num.append(0)
+            else:
+                image_data.append(default_collate(single_data['image']))
+                image_num.append(single_data['image_num'])
 
-        image = torch.concat([default_collate(f['image']) for f in data], dim=0).reshape((-1,) + data[0]["image"][0].shape[-3:])
-        image_num = [f['image_num'] for f in data] 
+        image = torch.concat(image_data, dim=0).reshape((-1,) + image_data[0].shape[-3:])
+    
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
@@ -132,6 +153,7 @@ class DataCollatorPadToMaxLenForPrediction:
     def __init__(self, max_token_len, pad_token_id):
         self.max_token_len = max_token_len
         self.pad_token_id = pad_token_id
+        self.image_size = image_size
 
     def __call__(self, data):
         batch = {}
@@ -142,7 +164,7 @@ class DataCollatorPadToMaxLenForPrediction:
         sample_id = data[0]['id']
 
         if len(data[0]['image']) == 0:
-            image = torch.ones(1, 3, 244, 244) # a fake image
+            image = torch.zeros(1, 3, self.image_size['height'],self.image_size['width']) 
             image_num = [0]
         else:
             image = torch.concat([default_collate(f['image']) for f in data], dim=0).reshape((-1,) + data[0]["image"][0].shape[-3:])

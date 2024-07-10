@@ -1,2 +1,3 @@
 from .modeling_dsvl import create_dsvl_model_and_transforms
 from .modeling_reward import create_reward_or_critic_model
+from .build_model import build_model

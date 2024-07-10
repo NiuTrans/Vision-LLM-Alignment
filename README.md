@@ -4,6 +4,7 @@ This includes SFT training, reward model training, and PPO/DPO training.
 If additional alignment algorithms need to be supported, please raise them in an issue.
 
 ## Changelog
+- [2024/07/10] We support the direct loading of a LLaVA model in all training stages, including SFT training, RM training, and PPO/DPO training.
 - [2024/07/07] We support the direct loading of a LLaVA model during the SFT training phase. You just need to set the `model_architecture` parameter to "llava" and specify the LLaVA model path with `from_checkpoint`. Support for this functionality during the DPO, RM training, and PPO junction phases will be introduced soon.
 
 ## Installation
@@ -50,24 +51,17 @@ bash run_predict.sh
 | LLaMA-2 | 7B/13B/70B |
 | LLaMA-3 | 8B/70B |
 
-Note: Other LLMs with the same architecture as LLaMA-2/3 are also supported.
-
 | Vision Model |
 |:---:|
 | clip-vit-large-patch14 |
 | clip-vit-large-patch14-336 |
 
-## Supported Traing Modes
-
-| Method | Full | LoRA |
-|:---:|:---:|:---:|
-| SFT |  √  | √ |
-| RM  |  √  | √ |
-| DPO |  √  | √ |
-| PPO |  √  |  |
+Note: Other LLMs with the same architecture as LLaMA-2/3 are also supported. You can also add arbitrary model architectures by modifying this `training/utils/model/build_model.py`.
 
 ## Acknowledgement
 We commence by utilizing the exceptional codebase provided by [DeepSpeed-VisualChat](https://github.com/microsoft/DeepSpeedExamples/tree/master/applications/DeepSpeed-VisualChat) 🌹🌹🌹.
+
+We would like to thank [Yifu Huo](https://github.com/if-noc) and [Yang Gan](https://github.com/Zhuzhu847) for their contributions to this work.
 
 We thank the following papers:
 ```bash

@@ -25,7 +25,7 @@ from rlhf_engine import DeepSpeedRLHFEngine
 from ppo_training_utils import (sampling, compute_logprobs_from_actor_and_ref, 
     compute_kl_reward_scores, get_advantages_and_returns, 
     critic_loss_fn, gather_log_probs,
-    actor_loss_fn)
+    actor_loss_fn, sampling_llava)
 
 from transformers import AdamW
 sys.path.append(
@@ -163,6 +163,13 @@ def parse_args():
                         action='store_true',
                         help='Enable HF gradient checkpointing for model.')
     parser.add_argument(
+        "--model_architecture",
+        type=str,
+        default="default",
+        help=
+        "Architecture of pretrained model or model identifier from huggingface.co/models.",
+    )   
+    parser.add_argument(
         "--lm_model_name_or_path",
         type=str,
         help=
@@ -220,7 +227,7 @@ def parse_args():
                         help='Only optimize the LoRA parameters.')
 
     ## from ppo training
-    parser.add_argument('--sft_model_ckpt_path',
+    parser.add_argument('--from_checkpoint',
                         type=str,
                         required=True,
                         help='Path to the trained SFT model.')
@@ -320,7 +327,7 @@ def parse_args():
 
     parser.add_argument('--template',
                 type=str,
-                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -359,17 +366,19 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
-                                              fast_tokenizer=True)
-    tokenizer.padding_side = 'left'
 
-    reward_tokenizer = AutoTokenizer.from_pretrained(args.lm_reward_model_name_or_path,
-                                              fast_tokenizer=True)
-    reward_tokenizer.padding_side = 'right'
+    if args.model_architecture == "llava":
+        tokenizer = None
+        reward_tokenizer = None
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
+                                                fast_tokenizer=True)
+        reward_tokenizer = AutoTokenizer.from_pretrained(args.lm_reward_model_name_or_path,
+                                                fast_tokenizer=True)
     
     # RLHF engine is responsible for creating models, loading checkpoints, ds-initialize models/optims/lr-schedulers
     rlhf_engine = DeepSpeedRLHFEngine(
-        actor_model_name_or_path=args.sft_model_ckpt_path,
+        actor_model_name_or_path=args.from_checkpoint,
         reward_model_name_or_path=args.reward_model_ckpt_path,
         actor_tokenizer=tokenizer,
         reward_tokenizer=reward_tokenizer,
@@ -408,14 +417,14 @@ def main():
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id),
     )
 
     start_epoch = 0
@@ -442,11 +451,19 @@ def main():
             attention_mask = batch["attention_mask"]
             with torch.no_grad():
                 # generation
-                sampling_ans = sampling(rlhf_engine.actor, 
+                if args.model_architecture == 'llava':
+                    sampling_ans = sampling_llava(rlhf_engine.actor, 
                                 images, input_ids, 
                                 attention_mask=attention_mask, 
                                 pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
                                 max_new_tokens=args.max_generation_length_of_sampling)
+                else:
+                    sampling_ans = sampling(rlhf_engine.actor, 
+                                    images, input_ids, 
+                                    attention_mask=attention_mask, 
+                                    pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                    max_new_tokens=args.max_generation_length_of_sampling)
+                
             
             # compute reward scores
             question_strings = rlhf_engine.actor_tokenizer_new.batch_decode(input_ids)
@@ -495,12 +512,21 @@ def main():
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             # Step 1: sampling candidate answers
-            sampling_ans = sampling(rlhf_engine.actor, 
-                                    images, input_ids, 
-                                    attention_mask=attention_mask, 
-                                    pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
-                                    max_new_tokens=args.max_generation_length_of_sampling)
-            
+            if args.model_architecture == 'llava':
+                sampling_ans = sampling_llava(rlhf_engine.actor, 
+                                images, input_ids, 
+                                attention_mask=attention_mask, 
+                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                max_new_tokens=args.max_generation_length_of_sampling, 
+                                processor=rlhf_engine.actor_tokenizer_new)
+            else:
+                sampling_ans = sampling(rlhf_engine.actor, 
+                                        images, input_ids, 
+                                        attention_mask=attention_mask, 
+                                        pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                        max_new_tokens=args.max_generation_length_of_sampling)
+            # print(sampling_ans)
+            # len(sampling_ans[0][1])
             # Step 2: computing reward scores
             # Firstly, we convert the question to a string format. 
             # We then concat the question string with the sampled answer string.
