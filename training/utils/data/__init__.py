@@ -7,6 +7,7 @@ from .utils import (DataCollatorPadToMaxLen,
 DataCollatorPadToMaxLenForRewardModel, 
 DataCollatorPadToMaxLenForPPOTraining, 
 DataCollatorPadToMaxLenForPrediction,
+DataCollatorPadToMaxLenForMSERewardModel,
 split_dataset, 
 shuffle_dataset)
 

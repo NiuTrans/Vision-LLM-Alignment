@@ -256,9 +256,12 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
-                                              fast_tokenizer=True)
-    tokenizer.padding_side = 'left'
+    if args.model_architecture == "default":
+        tokenizer = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
+                                                fast_tokenizer=True)
+        tokenizer.padding_side = 'left'
+    else:
+        tokenizer = None
     
     # RLHF engine is responsible for creating models, loading checkpoints, ds-initialize models/optims/lr-schedulers
     ds_config = get_train_ds_config(
@@ -274,13 +277,9 @@ def main():
                                         ds_config=ds_config)
     
 
-    if args.model_architecture=='default':
+    if args.model_architecture == "default":
         model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False) 
-
-        model.projection = model.projection.to('cuda')
-        model.vis_encoder = model.vis_encoder.to('cuda')
-    else:
-        model.to('cuda')
+    model.to('cuda')
     
     # Prepare the data
     if len(args.dataset_samples) < len(args.dataset_names):
@@ -323,7 +322,7 @@ def main():
         train_dataset,
         batch_size=args.batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=False, drop_last=False),
-        collate_fn=DataCollatorPadToMaxLenForPrediction(args.max_seq_len, tokenizer.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForPrediction(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
     )
 
     reference = json.load(open(args.data_path, "r", encoding="utf-8"))
@@ -368,7 +367,7 @@ def main():
                 id = str(batch['id'][0])
                 ref_image = reference_dict[id]['image'] if reference_dict[id]['image'] is not None else "None"
                 ref_label = reference_dict[id]['label'] if 'label' in reference_dict[id].keys() else "None"
-                line = " ||| ".join([id, ref_image.strip(), 
+                line = " ||| ".join([id, ref_image.strip(),
                         tokenizer.decode(input_ids[i], skip_special_tokens=True, clean_up_tokenization_spaces=True).replace("\n", "\\n"), 
                         sampling_ans[i][1].replace("\n", "\\n"), 
                         ref_label.strip()]) + "\n"

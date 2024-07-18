@@ -44,20 +44,7 @@ VICUNA_ASSISTANT_TOKEN = " ASSISTANT: "
 LLAVA_HUMAN_QUESTION_PRETOKEN = "USER: "
 LLAVA_ASSISTANT_TOKEN = "\nASSISTANT:"
 
-IMAGE_NUM = '<image#x>'
-IMAGE_NUM_1 = '### Image 1:'
-IMAGE_NUM_2 = '### Image 2:'
-IMAGE_NUM_3 = '### Image 3:'
-IMAGE_NUM_4 = '### Image 4:'
-IMAGE_NUM_5 = '### Image 5:'
-IMAGE_NUM_6 = '### Image 6:'
-IMAGE_NUM_7 = '### Image 7:'
-IMAGE_NUM_8 = '### Image 8:'
-
-# fow now we at most support 8 images, can be extended to more
-image_mapping_dict = {"default": DEFAULT_HUMAN_IMAGE_PRETOKEN, "1": IMAGE_NUM_1, "2": IMAGE_NUM_2, "3": IMAGE_NUM_3, "4": IMAGE_NUM_4, "5": IMAGE_NUM_5, "6": IMAGE_NUM_6, "7": IMAGE_NUM_7, "8": IMAGE_NUM_8}
-
-special_token_list = [DEFAULT_HUMAN_IMAGE_PRETOKEN, DEFAULT_IMAGE_TOKEN] # used for easy image # replacement
+special_token_list = [DEFAULT_IMAGE_TOKEN] # used for easy image # replacement
 
 DEFAULT_LABEL_PADDING_NUM = -100
 
@@ -71,13 +58,6 @@ def add_special_token(tokenizer, model_path=None):
         tokenizer.pad_token_id = 128002
 
     return tokenizer
-
-def get_image_num_map(tokenizer):
-    image_num_map = {}
-    for key in image_mapping_dict:
-        image_num_map[image_mapping_dict[key]] = tokenizer(image_mapping_dict[key])['input_ids'][1:] # remove <s>
-    image_num_map[DEFAULT_HUMAN_IMAGE_PRETOKEN] = image_num_map[DEFAULT_HUMAN_IMAGE_PRETOKEN][0] # convert list to number 
-    return image_num_map
 
 TEMPLATE = {
     "description": "Template Modified by DeepSpeed Team for Chat.",
@@ -128,6 +108,7 @@ class Prompter:
                 elif template == "llava":
                     res = LLAVA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 
+                
                 if num_images >= 1:
                     tmp_dict = {
                         1: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
@@ -152,7 +133,6 @@ class Prompter:
                     res = VICUNA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template == "llava":
                     res = LLAVA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
-            
             
             if first_message:
                 if template == "defalut":

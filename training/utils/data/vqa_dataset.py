@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import ConcatDataset, Dataset
-from transformers import LlamaTokenizer
+from transformers import AutoTokenizer
 import utils.data.DST as DST 
 from utils.utils import get_rank
 from .utils import save_debug_image, save_debug_text
@@ -44,7 +44,7 @@ class VQADataset(Dataset):
         vis_root (string): Root directory of images (e.g. coco/images/)
         ann_root (string): directory to store the annotation file
         """
-        self.tokenizer: LlamaTokenizer = tokenizer
+        self.tokenizer: AutoTokenizer = tokenizer
         self.data_path = data_path
         self.data_debug_path = data_debug_path
         self.data_debug_counter = 0
@@ -72,7 +72,6 @@ class VQADataset(Dataset):
         self.add_eos = add_eos
         self.ignore_instruction = ignore_instruction
         self.system_instruct = None
-        self.image_token_dict = DST.get_image_num_map(self.tokenizer)
         self.cat_number()
 
     def parse_annotation(self, annotation):
@@ -174,32 +173,20 @@ class VQADataset(Dataset):
             "labels": (len(system_instruct["input_ids"]) + 1) * [DST.DEFAULT_LABEL_PADDING_NUM],
         }
 
-    def merge_all_images(self, res_list):
-        def find_index_and_replace(input_list, attention_mask_list, labels_list, image_number):
-            # replace a single number with a list of numbers
-            index = input_list.index(self.image_token_dict[DST.DEFAULT_HUMAN_IMAGE_PRETOKEN])
-            input_list[index] = self.image_token_dict[DST.image_mapping_dict[str(image_number)]]
-            attention_mask_list[index] = [1] * len(self.image_token_dict[DST.image_mapping_dict[str(image_number)]])
-            labels_list[index] = [DST.DEFAULT_LABEL_PADDING_NUM] * len(self.image_token_dict[DST.image_mapping_dict[str(image_number)]])
-            # flatten nested list
-            input_list = DST.flatten(input_list)
-            attention_mask_list = DST.flatten(attention_mask_list)
-            labels_list = DST.flatten(labels_list)
-            return input_list, attention_mask_list, labels_list
-        image_number = 0 
-        original_output = {"input_ids": [], "attention_mask": [], "labels": [], "image": []} #copy.deepcopy(self.system_instruct)
-        # original_output["image"] = []
+    def merge_all_images(self, res_list, text):
+        image_number = 0
+        original_output = {"input_ids": [], "attention_mask": [], "labels": [], "image": [], "score": []} #copy.deepcopy(self.system_instruct)
         for res in res_list:
-            # need to check if it has image or not
-            if self.image_token_dict[DST.DEFAULT_HUMAN_IMAGE_PRETOKEN] in res["input_ids"]:
-                image_number += 1
-                res["input_ids"], res["attention_mask"], res["labels"] = find_index_and_replace(res["input_ids"], res["attention_mask"], res["labels"], image_number)
-                original_output["image"] = original_output["image"] + [res["image"]]
-                # cat res to original_output 
             original_output["input_ids"] = original_output["input_ids"] + res["input_ids"]
             original_output["attention_mask"] = original_output["attention_mask"] + res["attention_mask"]
             original_output["labels"] = original_output["labels"] + res["labels"]
+            if "score" in res.keys():
+                original_output["score"] = original_output["score"] + res["score"]
             
+            if DST.DEFAULT_IMAGE_TOKEN in text["instruction"]:
+                image_number = 1
+                original_output["image"] = original_output["image"] + [res["image"]]
+
         if image_number == 0:
             print("Warning: Here is input without image")
         original_output["image_num"] = image_number
@@ -224,7 +211,7 @@ class VQADataset(Dataset):
             }
             res.update(id_dict)
             res_list.append(res)
-        output = self.merge_all_images(res_list)
+        output = self.merge_all_images(res_list, text)
         return output
 
     def collater(self, samples):

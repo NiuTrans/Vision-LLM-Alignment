@@ -279,12 +279,7 @@ def main():
     args.global_rank = torch.distributed.get_rank()
 
     ds_config = get_train_ds_config(args, offload=False,
-                                    stage=args.zero_stage)
-    ds_config[
-        'train_micro_batch_size_per_gpu'] = args.per_device_train_batch_size
-    ds_config[
-        'train_batch_size'] = args.per_device_train_batch_size * torch.distributed.get_world_size(
-        ) * args.gradient_accumulation_steps
+                                    stage=2)
 
     # If passed along, set the training seed now.
     set_random_seed(args.seed)
@@ -300,7 +295,13 @@ def main():
     model, image_processor, tokenizer = build_model(
             text_tokenizer=tokenizer,
             args=args,
-            ds_config=ds_config)  
+            ds_config=ds_config)
+    
+    # let load checkpoint 
+    if os.path.exists(args.from_checkpoint) and args.model_architecture=='default':
+        # we have the deepspeed chekpoint so it is a resumed job
+        print_rank_0(f'load checkpoint from {args.from_checkpoint}')
+        model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     print_rank_0(model, args.global_rank) 
         
@@ -367,6 +368,14 @@ def main():
         num_training_steps=args.num_train_epochs * num_update_steps_per_epoch,
     )
 
+    ds_config = get_train_ds_config(args, offload=args.offload,
+                                    stage=args.zero_stage)
+    ds_config[
+        'train_micro_batch_size_per_gpu'] = args.per_device_train_batch_size
+    ds_config[
+        'train_batch_size'] = args.per_device_train_batch_size * torch.distributed.get_world_size(
+        ) * args.gradient_accumulation_steps
+
     model, optimizer, _, lr_scheduler = deepspeed.initialize(
         model=model,
         optimizer=optimizer,
@@ -376,11 +385,6 @@ def main():
         dist_init_required=True)
 
     start_epoch = 0
-    # let load checkpoint 
-    if os.path.exists(args.from_checkpoint) and args.model_architecture=='default':
-        # we have the deepspeed chekpoint so it is a resumed job
-        print_rank_0(f'load checkpoint from {args.from_checkpoint}')
-        _, client_state = model.load_checkpoint(args.from_checkpoint)
 
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()

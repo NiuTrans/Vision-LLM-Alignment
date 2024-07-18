@@ -36,6 +36,52 @@ def save_debug_text(text_to_save, data_debug_path, data_debug_counter, rank):
         with open(f"{data_debug_path}/gpu_rank{rank}_debug{data_debug_counter}_text.txt", 'w') as f:
             f.write(f"{text_to_save}")
 
+class DataCollatorPadToMaxLenForMSERewardModel:
+
+    def __init__(self, max_token_len, pad_token_id, image_size):
+        self.max_token_len = max_token_len
+        self.pad_token_id = pad_token_id
+        self.image_size = image_size
+
+    def __call__(self, data):
+        batch = {}
+        # data = data[0]
+        data = [data[i][j] for i in range(len(data)) for j in range(len(data[0]))]
+
+        input_ids = pad_sequence([default_collate(f['input_ids']) for f in data], 
+                                  padding_value=self.pad_token_id, 
+                                  batch_first=True)
+        
+        labels = pad_sequence([default_collate(f['labels']) for f in data],
+                                   padding_value=DST.DEFAULT_LABEL_PADDING_NUM,
+                                   batch_first=True)
+
+        attention_mask = pad_sequence([default_collate(f['attention_mask']) for f in data],
+                                        padding_value=0,
+                                        batch_first=True)
+        
+        image_num = []
+        image_data = []
+        score_list = []
+        for single_data in data:
+            if single_data['image'][0] is None:
+                image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width'])) 
+                image_num.append(0)
+            else:
+                image_data.append(default_collate(single_data['image']))
+                image_num.append(single_data['image_num'])
+            score_list.append(single_data["score"])
+
+        image = torch.concat(image_data, dim=0).reshape((-1,) + image_data[0].shape[-3:])
+    
+        batch['input_ids'] = input_ids
+        batch['labels'] = labels
+        batch['attention_mask'] = attention_mask
+        batch['image'] = image
+        batch['image_num'] = image_num
+        batch['score'] = score_list
+        return batch
+
 class DataCollatorPadToMaxLen:
 
     def __init__(self, max_token_len, pad_token_id, image_size):
@@ -60,7 +106,7 @@ class DataCollatorPadToMaxLen:
         for single_data in data:
             if single_data['image'][0] is None:
                 image_data.append(torch.zeros(1,3,self.image_size['height'],self.image_size['width'])) 
-                image_num.append(0)
+                image_num.append(1)
             else:
                 image_data.append(default_collate(single_data['image']))
                 image_num.append(single_data['image_num'])
@@ -150,7 +196,7 @@ class DataCollatorPadToMaxLenForPPOTraining:
 
 class DataCollatorPadToMaxLenForPrediction:
 
-    def __init__(self, max_token_len, pad_token_id):
+    def __init__(self, max_token_len, pad_token_id, image_size):
         self.max_token_len = max_token_len
         self.pad_token_id = pad_token_id
         self.image_size = image_size

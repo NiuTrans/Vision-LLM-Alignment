@@ -4,6 +4,7 @@ This includes SFT training, reward model training, and PPO/DPO training.
 If additional alignment algorithms need to be supported, please raise them in an issue.
 
 ## Changelog
+- [2024/07/18] We provide large-scale vision feedback data. It is a combination of the following high-quality vision feedback datasets. The dataset can be found in [wangclnlp/vision-feedback-mix-binarized](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized) and [wangclnlp/vision-feedback-mix-binarized-cleaned](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized-cleaned).
 - [2024/07/10] We support the direct loading of a LLaVA model in all training stages, including SFT training, RM training, and PPO/DPO training.
 - [2024/07/07] We support the direct loading of a LLaVA model during the SFT training phase. You just need to set the `model_architecture` parameter to "llava" and specify the LLaVA model path with `from_checkpoint`. Support for this functionality during the DPO, RM training, and PPO junction phases will be introduced soon.
 

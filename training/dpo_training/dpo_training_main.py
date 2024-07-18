@@ -466,7 +466,7 @@ def main():
             print_rank_0(f'Epoch {epoch}, Step: {(step)}, Loss:{dpo_training_loss/global_step}', args.global_rank)
         
         if args.global_rank == 0:
-            save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}')
+            save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.zero_stage == 3:
             # For zero stage 3, each gpu only has a part of the model, so we need a special save function
             save_zero_three_model(model,

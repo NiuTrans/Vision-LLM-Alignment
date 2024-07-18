@@ -333,8 +333,9 @@ def main():
         num_training_steps=args.num_train_epochs * num_update_steps_per_epoch,
     )
 
-    # print_rank_0("load actor model............")
-    # model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    print_rank_0("load actor model............")
+    if args.model_architecture == "default":
+        model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_config = get_train_ds_config(args, offload=args.offload,
                                     stage=args.zero_stage)
@@ -371,7 +372,8 @@ def main():
     )
 
     print_rank_0("load ref model............")
-    # ref_model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+    if args.model_architecture == "default":
+        ref_model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
     ds_ref_config_training = get_train_ds_config(
         offload=args.offload,

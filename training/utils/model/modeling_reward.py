@@ -104,6 +104,7 @@ def create_reward_or_critic_model(
             is_reward=True,
             is_load_from_ckpt=True,
             zero_stage=0,
+            training_reward_stage=False,
             args=None):
     
 
@@ -116,57 +117,16 @@ def create_reward_or_critic_model(
                                                                                             ds_config=ds_config,
                                                                                             args=args)
 
+    # load paramters from `from_checkpoint`
+    if training_reward_stage and args.model_architecture=='default':
+        # we have the deepspeed chekpoint so it is a resumed job
+        print(f"load checkpoint from {args.from_checkpoint}")
+        vis_llm.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+
     vis_reward_model = ViRewardModel(vis_llm=vis_llm,
                                      tokenizer=reward_tokenizer,
                                      is_reward=is_reward,
                                      vis_architecture=args.model_architecture)
-
-    # ``is_reward`` denotes that we are creating a reward model; 
-    # otherwise we are creating a critic model.
-    if is_load_from_ckpt:
-        if is_reward:
-            model_name_or_path = args.reward_model_path
-        else:
-            model_name_or_path = args.critic_model_ptah
-
-        if is_reward:
-            if args.model_architecture=="default":
-                 # load reward model from checkpoint
-                if not os.path.isdir(model_name_or_path):
-                    model_name_or_path = snapshot_download(model_name_or_path)
-                model_ckpt_path = os.path.join(model_name_or_path, 'pytorch_model.bin')
-                assert os.path.exists(
-                    model_ckpt_path
-                ), f"Cannot find model checkpoint at {model_ckpt_path}"
-
-                model_ckpt_state_dict = torch.load(model_ckpt_path, map_location='cpu')
-
-                # load critic model from checkpoint with zero-stage 3 compatibility
-                # this functionality may be moved to DS checkpoint load API in future
-                load_state_dict_into_model(vis_reward_model,
-                                        model_ckpt_state_dict,
-                                        "",
-                                        zero_stage=zero_stage)
-            elif args.model_architecture=="llava":
-                # The weights of the vision LLM have been loaded.
-                pass
-        else:
-            # load reward model from checkpoint
-            if not os.path.isdir(model_name_or_path):
-                model_name_or_path = snapshot_download(model_name_or_path)
-            model_ckpt_path = os.path.join(model_name_or_path, 'pytorch_model.bin')
-            assert os.path.exists(
-                model_ckpt_path
-            ), f"Cannot find model checkpoint at {model_ckpt_path}"
-
-            model_ckpt_state_dict = torch.load(model_ckpt_path, map_location='cpu')
-
-            # load critic model from checkpoint with zero-stage 3 compatibility
-            # this functionality may be moved to DS checkpoint load API in future
-            load_state_dict_into_model(vis_reward_model,
-                                    model_ckpt_state_dict,
-                                    "",
-                                    zero_stage=zero_stage)
         
     return vis_reward_model, reward_image_processor, reward_tokenizer
 

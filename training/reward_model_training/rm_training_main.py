@@ -302,13 +302,8 @@ def main():
             ds_config=ds_config,
             is_reward=True,
             is_load_from_ckpt=False,
+            training_reward_stage=True,
             args=args)
-        
-    # let load checkpoint 
-    if os.path.exists(os.path.join(args.from_checkpoint, 'latest')):
-        # we have the deepspeed chekpoint so it is a resumed job
-        print_rank_0(f"load checkpoint from {args.from_checkpoint}")
-        _, client_state = model.load_checkpoint(args.from_checkpoint)
     
     tokenizer.add_bos_token = True
     tokenizer.add_eos_token = True
@@ -422,15 +417,6 @@ def main():
         dist_init_required=True)
 
     start_epoch = 0
-    # let load checkpoint 
-    if os.path.exists(os.path.join(args.output_dir, 'latest')):
-        _, client_state = model.load_checkpoint(args.output_dir)
-        start_epoch = client_state['epoch']
-        best_loss = client_state['best_loss']
-        random.setstate(client_state['random_rng_state'])
-        np.random.set_state(client_state['np_rng_state'])
-        torch.set_rng_state(client_state['torch_rng_state'])
-        torch.cuda.set_rng_state(client_state['torch_cuda_rng_state'])
 
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()

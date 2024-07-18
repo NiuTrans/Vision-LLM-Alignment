@@ -11,7 +11,6 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from utils.model import create_reward_or_critic_model, build_model
 from utils.ds_utils import get_train_ds_config
-from utils.module.lora import convert_linear_layer_to_lora, only_optimize_lora_parameters
 from utils.utils import get_optimizer_grouped_parameters, print_rank_0
 
 
@@ -33,21 +32,21 @@ class DeepSpeedRLHFEngine():
             actor_model_name_or_path)
         self.actor_tokenizer_new.padding_side = 'left'
         
-        # self.ref, self.ref_image_processor, self.ref_tokenizer_new = self._init_ref(
-        #     actor_model_name_or_path)
-        # self.actor_tokenizer_new.padding_side = 'left'
+        self.ref, self.ref_image_processor, self.ref_tokenizer_new = self._init_ref(
+            actor_model_name_or_path)
+        self.actor_tokenizer_new.padding_side = 'left'
         
-        # self.reward, self.reward_image_processor, self.reward_tokenizer_new = self._init_reward(
-        #     reward_model_name_or_path)
-        # self.reward_tokenizer_new.padding_side="right"
-        # self.reward_tokenizer_new.add_bos_token = True
-        # self.reward_tokenizer_new.add_eos_token = True
+        self.reward, self.reward_image_processor, self.reward_tokenizer_new = self._init_reward(
+            reward_model_name_or_path)
+        self.reward_tokenizer_new.padding_side="right"
+        self.reward_tokenizer_new.add_bos_token = True
+        self.reward_tokenizer_new.add_eos_token = True
         
-        # self.critic, self.critic_image_processor, self.critic_tokenizer_new = self._init_critic(
-        #     reward_model_name_or_path)
-        # self.critic_tokenizer_new.padding_side="right"
-        # self.critic_tokenizer_new.add_bos_token = True
-        # self.critic_tokenizer_new.add_eos_token = True
+        self.critic, self.critic_image_processor, self.critic_tokenizer_new = self._init_critic(
+            reward_model_name_or_path)
+        self.critic_tokenizer_new.padding_side="right"
+        self.critic_tokenizer_new.add_bos_token = True
+        self.critic_tokenizer_new.add_eos_token = True
 
     def _init_actor(self, actor_path):
         # DS Config
@@ -71,16 +70,6 @@ class DeepSpeedRLHFEngine():
         
         if self.args.model_architecture == "default":
             model.load_state_dict(torch.load(os.path.join(actor_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
-
-        if self.args.lang_lora_dim > 0:
-            model.lang_decoder = convert_linear_layer_to_lora(model.lang_decoder, self.args.lang_lora_module_name, self.args.lang_lora_dim)
-        if self.args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(model.lang_decoder)
-
-        if self.args.vis_lora_dim > 0:
-            model.vis_encoder = convert_linear_layer_to_lora(model.vis_encoder, self.args.vis_lora_module_name, self.args.vis_lora_dim)
-        if self.args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(model.vis_encoder)
 
         # Split weights in two groups, one with weight decay and the other not.
         optimizer_grouped_parameters = get_optimizer_grouped_parameters(
@@ -135,16 +124,6 @@ class DeepSpeedRLHFEngine():
         if self.args.model_architecture == "default":
             model.load_state_dict(torch.load(os.path.join(ref_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
-        if self.args.lang_lora_dim > 0:
-            model.lang_decoder = convert_linear_layer_to_lora(model.lang_decoder, self.args.lang_lora_module_name, self.args.lang_lora_dim)
-        if self.args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(model.lang_decoder)
-
-        if self.args.vis_lora_dim > 0:
-            model.vis_encoder = convert_linear_layer_to_lora(model.vis_encoder, self.args.vis_lora_module_name, self.args.vis_lora_dim)
-        if self.args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(model.vis_encoder)
-
         ds_config = get_train_ds_config(
             offload=self.args.offload_actor_model,
             args=self.args,
@@ -177,18 +156,7 @@ class DeepSpeedRLHFEngine():
                                             args=self.args)
         
         print_rank_0("load critic model............")
-        if self.args.model_architecture == "default":
-            model.load_state_dict(torch.load(os.path.join(critic_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
-
-        if self.args.lang_lora_dim > 0:
-            model.lang_decoder = convert_linear_layer_to_lora(model.lang_decoder, self.args.lang_lora_module_name, self.args.lang_lora_dim)
-        if self.args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(model.lang_decoder)
-
-        if self.args.vis_lora_dim > 0:
-            model.vis_encoder = convert_linear_layer_to_lora(model.vis_encoder, self.args.vis_lora_module_name, self.args.vis_lora_dim)
-        if self.args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(model.vis_encoder)
+        model.load_state_dict(torch.load(os.path.join(critic_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
         # Split weights in two groups, one with weight decay and the other not.
         optimizer_grouped_parameters = get_optimizer_grouped_parameters(
@@ -250,18 +218,7 @@ class DeepSpeedRLHFEngine():
                                             args=self.args)
                                     
         print_rank_0("load reward model............")
-        if self.args.model_architecture == "default":
-            model.load_state_dict(torch.load(os.path.join(reward_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
-
-        if self.args.lang_lora_dim > 0:
-            model.lang_decoder = convert_linear_layer_to_lora(model.lang_decoder, self.args.lang_lora_module_name, self.args.lang_lora_dim)
-        if self.args.only_optimize_lora:
-            model.lang_decoder = only_optimize_lora_parameters(model.lang_decoder)
-
-        if self.args.vis_lora_dim > 0:
-            model.vis_encoder = convert_linear_layer_to_lora(model.vis_encoder, self.args.vis_lora_module_name, self.args.vis_lora_dim)
-        if self.args.only_optimize_lora:
-            model.vis_encoder = only_optimize_lora_parameters(model.vis_encoder)
+        model.load_state_dict(torch.load(os.path.join(reward_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
         ds_config = get_train_ds_config(
             offload=self.args.offload_critic_model,
