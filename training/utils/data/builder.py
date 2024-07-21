@@ -3,7 +3,7 @@ import torch
 
 from .llava_dataset import LlavaDataset, LlavaComparsionDataset, LlavaPPODataset, LlavaPredictDataset, LlavaRewardMseDataset, LlavaRewardEvalDataset
 from .vqa_dataset import ConcatDataset
-from utils.utils import print_rank_0
+from training.utils.utils import print_rank_0
 
 
 def build_dataset(data_path, data_debug_path, dataset_name, dataset_sample,

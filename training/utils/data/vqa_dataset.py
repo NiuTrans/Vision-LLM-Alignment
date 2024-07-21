@@ -19,8 +19,8 @@ import torch
 from PIL import Image
 from torch.utils.data import ConcatDataset, Dataset
 from transformers import AutoTokenizer
-import utils.data.DST as DST 
-from utils.utils import get_rank
+import training.utils.data.DST as DST 
+from training.utils.utils import get_rank
 from .utils import save_debug_image, save_debug_text
 import re
 

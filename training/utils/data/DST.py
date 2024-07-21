@@ -170,25 +170,5 @@ def split_list_with_random_num_items_up_to_a_certain_number(input_list, max_num)
         return [input_list[:random_num]] + split_list_with_random_num_items_up_to_a_certain_number(input_list[random_num:], max_num)
             
 def random_grouping(input_list, max_num):
-    random.shuffle(input_list)
-    random_num = np.random.randint(1, max_num+1, len(input_list))
-    # use bisect to find the index of random_num, whose sum is equal or large to len(input_list)
-    # then split the input_list into groups
-    cum_sum = np.cumsum(random_num)
-    # find the index now
-    left = 0
-    right = len(cum_sum) - 1
-    while left < right:
-        mid = (left + right) // 2
-        if cum_sum[mid] >= len(input_list):
-            right = mid
-        else:
-            left = mid + 1
-    index = left
-    cum_sum = list(cum_sum[:index+1])
-    if cum_sum[-1] > len(input_list):
-        cum_sum[-1] = len(input_list)
-    elif cum_sum[-1] < len(input_list):
-        cum_sum.append(len(input_list))
-        
-    return [input_list[cum_sum[i]:cum_sum[i+1]] for i in range(len(cum_sum)-1)]
+    # We have deleted the feature of multiple image, so this function is not need.
+    return [[item] for item in input_list]

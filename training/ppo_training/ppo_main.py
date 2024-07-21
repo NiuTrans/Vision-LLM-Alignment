@@ -553,6 +553,10 @@ def main():
                                     image_num=batch["image_num"]
                                 )["chosen_end_scores"]
 
+            # employ reward queue for standardising reward scores.
+            # (x - mean) / std
+            reward_scores = rlhf_engine.reward_score_standard(reward_scores)
+
             # Step 3: computing KL and values of the crtic model
             # computing the label ids for the critic model
             critic_ids = [torch.cat((input_ids[index], sampling_ans[index][0][0]), dim=-1)

@@ -253,7 +253,7 @@ def main():
     args.global_rank = torch.distributed.get_rank()
 
     # If passed along, set the training seed now.
-    set_random_seed(args.seed)
+    # set_random_seed(args.seed)
 
     torch.distributed.barrier()
     if args.model_architecture == "default":

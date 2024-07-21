@@ -4,7 +4,7 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 import shutil
 from torch.utils.data.dataloader import default_collate
-import utils.data.DST as DST
+import training.utils.data.DST as DST
 
 NUM_DEBUG_SAMPLE = 10
 

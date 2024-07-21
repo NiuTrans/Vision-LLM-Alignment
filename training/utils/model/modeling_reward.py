@@ -102,8 +102,6 @@ def create_reward_or_critic_model(
             text_tokenizer=None,
             ds_config=None,
             is_reward=True,
-            is_load_from_ckpt=True,
-            zero_stage=0,
             training_reward_stage=False,
             args=None):
     

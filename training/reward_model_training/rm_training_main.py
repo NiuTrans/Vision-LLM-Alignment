@@ -301,7 +301,6 @@ def main():
             text_tokenizer=tokenizer,
             ds_config=ds_config,
             is_reward=True,
-            is_load_from_ckpt=False,
             training_reward_stage=True,
             args=args)
     

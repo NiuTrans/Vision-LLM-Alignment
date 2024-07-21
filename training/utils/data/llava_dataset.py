@@ -2,9 +2,9 @@
 # This dataset is from https://llava-vl.github.io/
 import os
 import copy
-import utils.data.DST as DST 
+import training.utils.data.DST as DST
 from .vqa_dataset import VQADataset
-from utils.utils import get_rank
+from training.utils.utils import get_rank
 from .utils import save_debug_text
 
 

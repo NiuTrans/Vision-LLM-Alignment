@@ -23,6 +23,12 @@ class DeepSpeedRLHFEngine():
                  args=None):
         self.args = args
 
+        # reward score queue
+        # ref: ```Esrl: Efficient sampling-based reinforcement learning for sequence generation```
+        self.queue_size = 1000
+        self.expanding_multiples = 10
+        self.reward_queue = torch.tensor([], dtype=torch.float16)
+
         self.number_dataset = number_dataset
 
         self.actor_tokenizer = actor_tokenizer
@@ -47,6 +53,18 @@ class DeepSpeedRLHFEngine():
         self.critic_tokenizer_new.padding_side="right"
         self.critic_tokenizer_new.add_bos_token = True
         self.critic_tokenizer_new.add_eos_token = True
+    
+    def push_queue(self, reward_scores):
+        self.reward_queue = torch.cat((self.reward_queue, self.reward_queue))
+        if len(self.reward_queue) > self.queue_size:
+            self.reward_queue = self.reward_queue[-self.queue_size:]
+    
+    def reward_score_standard(self, reward_scores):
+        self.push_queue(reward_scores)
+        reward_mean = torch.mean(self.reward_queue)
+        reward_std = torch.std(self.reward_queue)
+        reward_scores_standard = (reward_scores - reward_mean) / reward_std
+        return reward_scores_standard
 
     def _init_actor(self, actor_path):
         # DS Config
@@ -152,7 +170,6 @@ class DeepSpeedRLHFEngine():
                                             text_tokenizer=self.reward_tokenizer,
                                             ds_config=ds_config,
                                             is_reward=False,
-                                            is_load_from_ckpt=False,
                                             args=self.args)
         
         print_rank_0("load critic model............")
@@ -214,7 +231,6 @@ class DeepSpeedRLHFEngine():
                                             text_tokenizer=self.reward_tokenizer,
                                             ds_config=ds_config,
                                             is_reward=True,
-                                            is_load_from_ckpt=False,
                                             args=self.args)
                                     
         print_rank_0("load reward model............")

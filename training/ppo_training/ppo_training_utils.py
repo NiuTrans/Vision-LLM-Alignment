@@ -45,7 +45,7 @@ def sampling(actor_model,
         # from training.utils.pdb import pdb; pdb.set_trace()
         res = actor_model.generate(sub_img, sub_lang, 
                                     generation_length=max_new_tokens, 
-                                    generation_kwargs=generation_kwargs)
+                                    **generation_kwargs)
         
         all_res.append(res)
     actor_model.train()
@@ -89,9 +89,9 @@ def sampling_llava(actor_model,
         sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
 
         if sub_img == [None]:
-            res = actor_model.generate(input_ids=sub_lang, max_new_tokens=max_new_tokens, generation_kwargs=generation_kwargs)[0][lang.shape[1]:]
+            res = actor_model.generate(input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][lang.shape[1]:]
         else:
-            res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, generation_kwargs=generation_kwargs)[0][lang.shape[1]:]
+            res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][lang.shape[1]:]
         res_text = processor.decode(res,skip_special_tokens=True)       
         all_res.append([res, res_text])
     actor_model.train()
@@ -135,7 +135,7 @@ def compute_kl_reward_scores(logprobs, ref_logprobs, reward_scores,
     # some hyper-parameters from computing rewards
     # ref: https://github.com/microsoft/DeepSpeedExamples/blob/master/applications/DeepSpeed-Chat/dschat/rlhf/ppo_trainer.py#L66
     kl_ctl = 0.1
-    clip_reward_value = 5
+    clip_reward_value = 10
 
     kl_divergence_estimate = - kl_ctl * (logprobs - ref_logprobs)
     kl_rewards = kl_divergence_estimate
