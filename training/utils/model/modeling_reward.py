@@ -106,14 +106,20 @@ def create_reward_or_critic_model(
             args=None):
     
 
-    if args.model_architecture=="default":
+    if args.reward_model_architecture=="default" and is_reward:
         vis_llm, reward_image_processor, reward_tokenizer = create_dsvl_model_and_transforms(text_tokenizer=text_tokenizer,
                                                                                             ds_config=ds_config,
                                                                                             args=args)
-    else: 
+    elif is_reward:
         vis_llm, reward_image_processor, reward_tokenizer = build_model(text_tokenizer=text_tokenizer,
-                                                                                            ds_config=ds_config,
-                                                                                            args=args)
+                                                                            ds_config=ds_config,
+                                                                            model_architecture=args.reward_model_architecture,
+                                                                            from_checkpoint=args.reward_base_model,
+                                                                            args=args)
+    else:
+        vis_llm, reward_image_processor, reward_tokenizer = build_model(text_tokenizer=text_tokenizer,
+                                                                    ds_config=ds_config,
+                                                                    args=args)
 
     # load paramters from `from_checkpoint`
     if training_reward_stage and args.model_architecture=='default':
@@ -121,10 +127,16 @@ def create_reward_or_critic_model(
         print(f"load checkpoint from {args.from_checkpoint}")
         vis_llm.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
-    vis_reward_model = ViRewardModel(vis_llm=vis_llm,
-                                     tokenizer=reward_tokenizer,
-                                     is_reward=is_reward,
-                                     vis_architecture=args.model_architecture)
+    if is_reward and (args.reward_model_architecture=="llava" or args.reward_model_architecture=="llava_next"):
+        vis_reward_model = ViRewardModel(vis_llm=vis_llm,
+                                        tokenizer=reward_tokenizer,
+                                        is_reward=is_reward,
+                                        vis_architecture="llava")
+    else:
+        vis_reward_model = ViRewardModel(vis_llm=vis_llm,
+                                        tokenizer=reward_tokenizer,
+                                        is_reward=is_reward,
+                                        vis_architecture=args.model_architecture)
         
     return vis_reward_model, reward_image_processor, reward_tokenizer
 
@@ -139,7 +151,7 @@ class ViRewardModel(nn.Module):
 
         if vis_architecture == "default":
             self.config = vis_llm.lang_decoder.config
-        elif vis_architecture == "llava":
+        elif vis_architecture in ["llava", "llava_next"]:
             self.config = vis_llm.language_model.config
 
         self.vis_architecture = vis_architecture
@@ -200,7 +212,7 @@ class ViRewardModel(nn.Module):
                     output_hidden_states,
                     return_dict)
             hidden_states = transformer_outputs
-        elif self.vis_architecture == "llava":
+        elif self.vis_architecture in ["llava", "llava_next"]:
             transformer_outputs = self.rwtranrsformer(
                     input_ids=lang,
                     pixel_values=img, 
@@ -230,7 +242,8 @@ class ViRewardModel(nn.Module):
         return end_reward_scores
 
     def forward_value(self,
-                    img, lang, 
+                    img, lang,
+                    image_sizes = None, 
                     attention_mask=None,
                     input_labels=None,
                     image_num=None,
@@ -252,17 +265,27 @@ class ViRewardModel(nn.Module):
                     output_hidden_states,
                     return_dict)
             hidden_states = transformer_outputs
-        elif self.vis_architecture == "llava":
-            transformer_outputs = self.rwtranrsformer(
-                    input_ids=lang,
-                    pixel_values=img, 
-                    attention_mask=attention_mask,
-                    labels=input_labels,
-                    output_hidden_states=output_hidden_states,
-                    return_dict=return_dict)
+        elif self.vis_architecture in ["llava", "llava_next"]:
+            if image_sizes is not None:
+                transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img,
+                        image_sizes = image_sizes, 
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
+            else:
+                transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img, 
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
             
             hidden_states = transformer_outputs.hidden_last_layer_drop_image
-
+            
         rewards = self.v_head(hidden_states).squeeze(-1)
 
         bs = rewards.size(0)

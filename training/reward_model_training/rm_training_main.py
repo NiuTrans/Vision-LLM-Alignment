@@ -237,11 +237,20 @@ def parse_args():
         type=str,
         default="./basemodel/",
         help='Specifying the checkpoint directory to be loaded.')
+    parser.add_argument('--trained_reward_model',
+                        type=str,
+                        required=True,
+                        help='Path to the trained reward model.')
     parser.add_argument(
         '--eval_step',
         type=int,
         default=100,
         help='The evaluation will be conducted every specific number of training steps.')
+    parser.add_argument(
+        '--save_step',
+        type=int,
+        default=999999,
+        help='The checkpoint will be saved every specific number of training steps.')
     parser.add_argument(
         '--vis_encoder_update',
         action='store_true',
@@ -307,6 +316,9 @@ def main():
     tokenizer.add_bos_token = True
     tokenizer.add_eos_token = True
 
+    if os.path.exists(args.trained_reward_model):
+        model.load_state_dict(torch.load(os.path.join(args.trained_reward_model, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+
     if args.lang_lora_dim > 0:
         model.lang_decoder = convert_linear_layer_to_lora(model.rwtranrsformer.lang_decoder, args.lang_lora_module_name, args.lang_lora_dim)
         if args.only_optimize_lora:
@@ -337,6 +349,7 @@ def main():
             args.dataset_samples,
             args.dataset_concatenate_samples,
             args.max_num_image_per_sample,
+            max_ranked_candidate_num=args.ranked_candidate_num,
             vis_processor=image_processor,
             vis_root=args.image_folder,
             tokenizer=tokenizer,
@@ -354,6 +367,7 @@ def main():
             args.dataset_samples,
             args.dataset_concatenate_samples,
             args.max_num_image_per_sample,
+            max_ranked_candidate_num=args.ranked_candidate_num,
             vis_processor=image_processor,
             vis_root=args.image_folder,
             tokenizer=tokenizer,
@@ -366,6 +380,7 @@ def main():
             args.dataset_samples,
             args.dataset_concatenate_samples,
             args.max_num_image_per_sample,
+            max_ranked_candidate_num=args.ranked_candidate_num,
             vis_processor=image_processor,
             vis_root=args.image_folder,
             tokenizer=tokenizer,
@@ -431,11 +446,23 @@ def main():
         for step, batch in enumerate(tqdm(eval_dataloader)):
             with torch.no_grad():
                 batch = to_device(batch, device)
+                chosen_idx = [i for i in range(len(batch["input_ids"])) if (batch['input_ids'][i][0] != -1)]
+
+                batch["image"] = [batch["image"][i] for i in chosen_idx]
+                batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
+                batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
+                batch["labels"] = [batch["labels"][i] for i in chosen_idx]
+                # import pdb;pdb.set_trace()
+                
+                input_ids = torch.stack(batch["input_ids"])
+                attention_mask = torch.stack(batch["attention_mask"])
+                labels = torch.stack(batch["labels"])
+                images = torch.stack(batch["image"])
                 reward_scores = model(
-                    batch["image"].half() ,
-                    batch["input_ids"],
-                    attention_mask=batch["attention_mask"],
-                    input_labels=batch["labels"],
+                    images ,
+                    input_ids,
+                    attention_mask=attention_mask,
+                    input_labels=labels,
                     image_num=batch["image_num"],
                 )
                 if candidate_assigned == False:
@@ -475,10 +502,18 @@ def main():
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
-            images = batch["image"].half() 
-            input_ids = batch["input_ids"]
-            attention_mask = batch["attention_mask"]
-            labels = batch["labels"]
+            chosen_idx = [i for i in range(len(batch["input_ids"])) if (batch['input_ids'][i][0] != -1)]
+
+            batch["image"] = [batch["image"][i] for i in chosen_idx]
+            batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
+            batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
+            batch["labels"] = [batch["labels"][i] for i in chosen_idx]
+            # import pdb;pdb.set_trace()
+            
+            input_ids = torch.stack(batch["input_ids"])
+            attention_mask = torch.stack(batch["attention_mask"])
+            labels = torch.stack(batch["labels"])
+            images = torch.stack(batch["image"])
             reward_scores = model(
                 images,
                 input_ids,
@@ -530,14 +565,34 @@ def main():
             global_step += 1
             if global_step % args.eval_step == 0:
                 evaluation(model, eval_dataloader)
-            
+
+            if global_step % args.save_step == 0:
+                if args.global_rank == 0:
+                    save_hf_format(model, tokenizer, args, f'epoch-{epoch}-{global_step}')
+
+                if args.zero_stage == 3:
+                    # For zero stage 3, each gpu only has a part of the model, so we need a special save function
+                    save_zero_three_model(model,
+                                        args.global_rank,
+                                        args.output_dir,
+                                        zero_stage=args.zero_stage, 
+                                        sub_folder=f'epoch-{epoch}-{global_step}')
+                if args.zero_stage in [1,2]:
+                    # https://deepspeed.readthedocs.io/en/latest/model-checkpointing.html
+                    model_to_save = model.module if hasattr(model,
+                                                            'module') else model
+                    lean_state_dict = deepspeed.checkpoint.utils.clone_tensors_for_torch_save(model_to_save.state_dict())
+                    os.makedirs(f'{args.output_dir}/epoch-{epoch}-{global_step}', exist_ok=True)
+                    WEIGHTS_NAME = "pytorch_model.bin"
+                    output_model_file = os.path.join(f'{args.output_dir}/epoch-{epoch}-{global_step}', WEIGHTS_NAME)
+                    torch.save(lean_state_dict, output_model_file)
+
         model.tput_timer.update_epoch_count()
         evaluation(model, eval_dataloader)
 
-        
         model = fuse_lora(model)
         if args.global_rank == 0:
-            save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}')
+            save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.zero_stage == 3:
             # For zero stage 3, each gpu only has a part of the model, so we need a special save function
             save_zero_three_model(model,

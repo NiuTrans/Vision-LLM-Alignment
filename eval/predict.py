@@ -197,11 +197,12 @@ def parse_args():
     
     parser.add_argument('--template',
                         type=str,
-                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
+                        choices=
+                        ["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava", "llava_next"],)
     
     parser.add_argument(
         "--max_new_tokens",
-        default=384,
+        default=512,
         type=int
     )
     parser.add_argument(
@@ -279,6 +280,7 @@ def main():
 
     if args.model_architecture == "default":
         model.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False) 
+    model = model.to(torch.bfloat16)
     model.to('cuda')
     
     # Prepare the data
@@ -342,19 +344,27 @@ def main():
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         image_num = batch["image_num"]
+
+        image_sizes = None
+
+        if args.model_architecture == "llava_next":
+            image_sizes = batch["image_sizes"]
+            image_sizes = image_sizes.reshape(len(input_ids), 2)
+            images = images.reshape(len(input_ids), -1, images.size(-3), images.size(-2), images.size(-1))
         
         if image_num[0] == 0:
             images = [None]
-
+        # import pdb; pdb.set_trace()
         if args.model_architecture == 'default':
             sampling_ans = sampling(model, 
                                     images, input_ids, 
                                     attention_mask=attention_mask, 
                                     pad_token_id=tokenizer.pad_token_id,
                                     **generation_kwargs)
-        elif args.model_architecture == 'llava':
+        elif args.model_architecture in ["llava", "llava_next"]:
             sampling_ans = sampling_llava(model, 
-                                    images, input_ids, 
+                                    images, input_ids,
+                                    image_sizes=image_sizes, 
                                     attention_mask=attention_mask, 
                                     pad_token_id=tokenizer.pad_token_id,
                                     processor=tokenizer,
@@ -366,7 +376,14 @@ def main():
             for i in range(args.batch_size):       
                 id = str(batch['id'][0])
                 ref_image = reference_dict[id]['image'] if reference_dict[id]['image'] is not None else "None"
-                ref_label = reference_dict[id]['label'] if 'label' in reference_dict[id].keys() else "None"
+
+                if 'label' in reference_dict[id].keys():
+                    ref_label = reference_dict[id]['label']
+                elif len(reference_dict[id]['conversations']) == 2:
+                    ref_label = reference_dict[id]['conversations'][1]['value'].replace("\n", "\\n")
+                else:
+                    ref_label = "None"
+
                 line = " ||| ".join([id, ref_image.strip(),
                         tokenizer.decode(input_ids[i], skip_special_tokens=True, clean_up_tokenization_spaces=True).replace("\n", "\\n"), 
                         sampling_ans[i][1].replace("\n", "\\n"), 

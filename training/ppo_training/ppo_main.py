@@ -168,6 +168,13 @@ def parse_args():
         default="default",
         help=
         "Architecture of pretrained model or model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--reward_model_architecture",
+        type=str,
+        default="default",
+        help=
+        "Architecture of pretrained model or model identifier from huggingface.co/models.",
     )   
     parser.add_argument(
         "--lm_model_name_or_path",
@@ -231,6 +238,10 @@ def parse_args():
                         type=str,
                         required=True,
                         help='Path to the trained SFT model.')
+    parser.add_argument('--reward_base_model',
+                        type=str,
+                        required=True,
+                        help='Path to the reward base model.')
     parser.add_argument('--reward_model_ckpt_path',
                         type=str,
                         required=True,
@@ -300,13 +311,23 @@ def parse_args():
         type=int,
         default=1,
         help="For generated data, how many ppo training epochs to run.")
-    
+    parser.add_argument(
+        "--skip_actor_model",
+        type=int,
+        default=0,
+        help="For the first $skip_actor_model$ training steps, only the critical model is updated.")
     parser.add_argument(
         '--max_training_samples_num',
         type=int,
         default=10000,
         help='The maximum number of training samples in the PPO process.')
     
+    parser.add_argument(
+        '--max_training_step',
+        type=int,
+        default=1000,
+        help='Maximum training steps for the actor model.')
+
     parser.add_argument(
         '--save_step',
         type=int,
@@ -327,7 +348,7 @@ def parse_args():
 
     parser.add_argument('--template',
                 type=str,
-                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
+                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava", "llava_next"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -417,14 +438,14 @@ def main():
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, rlhf_engine.actor_image_processor.crop_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, rlhf_engine.actor_image_processor.crop_size),
     )
 
     start_epoch = 0
@@ -456,7 +477,8 @@ def main():
                                 images, input_ids, 
                                 attention_mask=attention_mask, 
                                 pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
-                                max_new_tokens=args.max_generation_length_of_sampling)
+                                max_new_tokens=args.max_generation_length_of_sampling,
+                                processor=rlhf_engine.actor_tokenizer_new)
                 else:
                     sampling_ans = sampling(rlhf_engine.actor, 
                                     images, input_ids, 
@@ -485,6 +507,7 @@ def main():
                 reward_scores = rlhf_engine.reward.forward_value(images,
                                     reward_input_id,
                                     attention_mask=reward_attention_mask,
+                                    input_labels=reward_input_id,
                                     image_num=batch["image_num"]
                                 )["chosen_end_scores"]
 
@@ -502,6 +525,12 @@ def main():
             f"Beginning of Epoch {epoch+1}/{args.num_train_epochs}, Total Micro Batches {len(train_dataloader)}",
             args.global_rank)
 
+        # flag to skip the update of actor model.
+        if args.skip_actor_model>0:
+            only_update_critic_model = True
+        else:
+            only_update_critic_model = False
+
         rlhf_engine.actor.train()
         rlhf_engine.critic.train()
         rlhf_engine.ref.eval()
@@ -511,10 +540,20 @@ def main():
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
+            image_sizes = None
+
+            if args.model_architecture == "llava_next":
+                image_sizes = batch["image_sizes"]
+                image_sizes = image_sizes.reshape(len(input_ids), 2)
+                images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                
+                original_images = images[:, 0, :, :]
+            
             # Step 1: sampling candidate answers
-            if args.model_architecture == 'llava':
+            if args.model_architecture in ["llava", "llava_next"]:
                 sampling_ans = sampling_llava(rlhf_engine.actor, 
-                                images, input_ids, 
+                                images, input_ids,
+                                image_sizes=image_sizes,
                                 attention_mask=attention_mask, 
                                 pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
                                 max_new_tokens=args.max_generation_length_of_sampling, 
@@ -547,11 +586,21 @@ def main():
             rlhf_engine.critic_tokenizer_new.decode(input_ids[0])
 
             with torch.no_grad():
-                reward_scores = rlhf_engine.reward.forward_value(images,
-                                    reward_input_id,
-                                    attention_mask=reward_attention_mask,
-                                    image_num=batch["image_num"]
-                                )["chosen_end_scores"]
+                if args.reward_model_architecture == "llava":
+                    reward_scores = rlhf_engine.reward.forward_value(original_images,
+                                        reward_input_id,
+                                        attention_mask=reward_attention_mask,
+                                        input_labels=reward_input_id,   # not need to mask the prompt
+                                        image_num=batch["image_num"]
+                                    )["chosen_end_scores"]
+                
+                elif args.reward_model_architecture == "llava_next":
+                    reward_scores = rlhf_engine.reward.forward_value(images,
+                                        reward_input_id,
+                                        attention_mask=reward_attention_mask,
+                                        input_labels=reward_input_id,   # not need to mask the prompt
+                                        image_num=batch["image_num"]
+                                    )["chosen_end_scores"]
 
             # employ reward queue for standardising reward scores.
             # (x - mean) / std
@@ -559,12 +608,18 @@ def main():
 
             # Step 3: computing KL and values of the crtic model
             # computing the label ids for the critic model
-            critic_ids = [torch.cat((input_ids[index], sampling_ans[index][0][0]), dim=-1)
-                for index in range(len(input_ids))]
+            if args.model_architecture in ["llava", "llava_next"]:
+                critic_ids = [torch.cat((input_ids[index], sampling_ans[index][0]), dim=-1)
+                    for index in range(len(input_ids))]
+            else:
+                critic_ids = [torch.cat((input_ids[index], sampling_ans[index][0][0]), dim=-1)
+                    for index in range(len(input_ids))]
             # pading thie critic_ids
-            critic_input_ids = pad_sequence([ids for ids in critic_ids], 
+            reversed_sequences = [torch.flip(ids, dims=[0]) for ids in critic_ids]
+            reversed_critic_input_ids = pad_sequence(reversed_sequences, 
                                         padding_value=rlhf_engine.actor_tokenizer_new.pad_token_id, 
                                         batch_first=True)
+            critic_input_ids = torch.flip(reversed_critic_input_ids, dims=[1])
 
             label_ids = []
             for index in range(reward_input_id.size()[0]):
@@ -586,14 +641,18 @@ def main():
                                     input_ids=critic_input_ids,
                                     input_labels=critic_label_ids,
                                     attention_mask=critic_attention_mask,
-                                    image_num=batch["image_num"])
+                                    image_num=batch["image_num"],
+                                    image_sizes = image_sizes,
+                                    model_architecture=args.model_architecture)
             
             # Step 4: compute advantages and returns
             # compute the values
             with torch.no_grad():
                 old_values = rlhf_engine.critic.forward_value(images,
                                                 critic_input_ids,
+                                                image_sizes=image_sizes,
                                                 attention_mask=critic_attention_mask,
+                                                input_labels=critic_input_ids,
                                                 image_num=batch["image_num"]
                                             )["values"]
             
@@ -605,12 +664,30 @@ def main():
             for ppo_ep in range(args.ppo_epochs):
                 if ppo_ep != 0:
                     with torch.no_grad():
-                        actor_logits = rlhf_engine.actor(images,
-                                        critic_input_ids,
-                                        attention_mask=critic_attention_mask,
-                                        input_labels=critic_label_ids,
-                                        image_num=batch["image_num"]
-                                        )[1]
+                        if args.model_architecture == "default":
+                            actor_logits = rlhf_engine.actor(images,
+                                                    critic_input_ids,
+                                                    attention_mask=critic_attention_mask,
+                                                    input_labels=critic_label_ids,
+                                                    image_num=batch["image_num"]
+                                                    )[1]
+                        elif args.model_architecture in ["llava", "llava_next"]:
+                            if image_sizes is not None:
+                                actor_logits = rlhf_engine.actor(
+                                                input_ids=critic_input_ids,
+                                                pixel_values = images,
+                                                image_sizes = image_sizes,
+                                                attention_mask=critic_attention_mask,
+                                                labels=critic_label_ids,
+                                                output_hidden_states=True).logits_drop_image
+                            else:
+                                actor_logits = rlhf_engine.actor(
+                                                input_ids=critic_input_ids,
+                                                pixel_values = images,
+                                                attention_mask=critic_attention_mask,
+                                                labels=critic_label_ids,
+                                                output_hidden_states=True).logits_drop_image
+                            
                         logprobs = gather_log_probs(actor_logits[:, :-1, :], critic_input_ids[:, 1:])
 
                 # compute reward scores with KL
@@ -635,11 +712,21 @@ def main():
                 
                 # Step 5: update the actor and critic models
                 # update critic model
-                values = rlhf_engine.critic.forward_value(images,
-                                                    critic_input_ids,
-                                                    attention_mask=critic_attention_mask,
-                                                    image_num=batch["image_num"]
-                                                )["values"]
+                if image_sizes is not None:
+                    values = rlhf_engine.critic.forward_value(images,
+                                                        critic_input_ids,
+                                                        image_sizes=image_sizes,
+                                                        attention_mask=critic_attention_mask,
+                                                        input_labels=critic_input_ids,
+                                                        image_num=batch["image_num"]
+                                                    )["values"]
+                else:
+                    values = rlhf_engine.critic.forward_value(images,
+                                                        critic_input_ids,
+                                                        attention_mask=critic_attention_mask,
+                                                        input_labels=critic_input_ids,
+                                                        image_num=batch["image_num"]
+                                                    )["values"]
 
                 critic_loss = critic_loss_fn(values=values[:, start:], 
                                             old_values=old_values[:,start:],
@@ -647,20 +734,53 @@ def main():
                                             mask=action_attention_mask[:, start:])
 
                 rlhf_engine.critic.backward(critic_loss)
+                # judge only_update_critic_model
+                if only_update_critic_model:
+                    critic_loss_log += critic_loss
+                    kl_distance_log += kl_distance
+
+                    critic_loss_log = get_all_reduce_mean(critic_loss_log).item()
+                    kl_distance_log = get_all_reduce_mean(kl_distance_log).item()
+
+                    rlhf_engine.critic.step()
+
+                    # update stuatus
+                    if global_step>args.skip_actor_model:
+                        only_update_critic_model = False
+
+                    continue
 
                 # update actor model
-                actor_logits = rlhf_engine.actor(images,
-                                        critic_input_ids,
+                if args.model_architecture == "default":
+                    actor_logits = rlhf_engine.actor(images,
+                                            critic_input_ids,
+                                            attention_mask=critic_attention_mask,
+                                            input_labels=critic_label_ids,
+                                            image_num=batch["image_num"]
+                                            )[1]
+                elif args.model_architecture in ["llava", "llava_next"]:
+                    if image_sizes is not None:
+                        actor_logits = rlhf_engine.actor(
+                                    input_ids=critic_input_ids,
+                                    pixel_values = images,
+                                    image_sizes = image_sizes,
+                                    attention_mask=critic_attention_mask,
+                                    labels=critic_label_ids,
+                                    output_hidden_states=True).logits_drop_image
+                    else:
+                        actor_logits = rlhf_engine.actor(
+                                        input_ids=critic_input_ids,
+                                        pixel_values = images,
                                         attention_mask=critic_attention_mask,
-                                        input_labels=critic_label_ids,
-                                        image_num=batch["image_num"]
-                                        )[1]
+                                        labels=critic_label_ids,
+                                        output_hidden_states=True).logits_drop_image
+
                 actor_logprobs = gather_log_probs(actor_logits[:, :-1, :], critic_input_ids[:, 1:])
+    
                 actor_loss = actor_loss_fn(logprobs=actor_logprobs[:, start:],
                                         old_logprobs=logprobs[:, start:], 
                                         advantages=advantages,
                                         mask=action_attention_mask[:, start:])
-
                 rlhf_engine.actor.backward(actor_loss)
 
                 if not args.align_overflow:
@@ -707,8 +827,8 @@ def main():
 
             global_step += 1
             if global_step % args.save_step == 0:
-
-                model = fuse_lora(rlhf_engine.actor)
+                model = rlhf_engine.actor
+                tokenizer = rlhf_engine.actor_tokenizer_new
                 if args.global_rank == 0:
                     save_hf_format(model, tokenizer, args, f'epoch-{epoch}-step-{global_step}')
                 if args.actor_zero_stage == 3:
@@ -731,9 +851,13 @@ def main():
             if global_step % args.eval_step == 0:
                 evaluation(eval_dataloader)
 
+            if global_step >= args.max_training_step:
+                exit()
+
         evaluation(eval_dataloader)
 
-        model = fuse_lora(rlhf_engine.actor)
+        model = rlhf_engine.actor
+        tokenizer = rlhf_engine.actor_tokenizer_new
         if args.global_rank == 0:
             save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.actor_zero_stage == 3:

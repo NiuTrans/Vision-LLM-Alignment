@@ -27,7 +27,7 @@ class DeepSpeedRLHFEngine():
         # ref: ```Esrl: Efficient sampling-based reinforcement learning for sequence generation```
         self.queue_size = 1000
         self.expanding_multiples = 10
-        self.reward_queue = torch.tensor([], dtype=torch.float16)
+        self.reward_queue = torch.tensor([], dtype=torch.float16).cuda()
 
         self.number_dataset = number_dataset
 
@@ -49,13 +49,13 @@ class DeepSpeedRLHFEngine():
         self.reward_tokenizer_new.add_eos_token = True
         
         self.critic, self.critic_image_processor, self.critic_tokenizer_new = self._init_critic(
-            reward_model_name_or_path)
+            actor_model_name_or_path)
         self.critic_tokenizer_new.padding_side="right"
         self.critic_tokenizer_new.add_bos_token = True
         self.critic_tokenizer_new.add_eos_token = True
     
     def push_queue(self, reward_scores):
-        self.reward_queue = torch.cat((self.reward_queue, self.reward_queue))
+        self.reward_queue = torch.cat((self.reward_queue, reward_scores))
         if len(self.reward_queue) > self.queue_size:
             self.reward_queue = self.reward_queue[-self.queue_size:]
     
@@ -64,7 +64,7 @@ class DeepSpeedRLHFEngine():
         reward_mean = torch.mean(self.reward_queue)
         reward_std = torch.std(self.reward_queue)
         reward_scores_standard = (reward_scores - reward_mean) / reward_std
-        return reward_scores_standard
+        return reward_scores_standard * self.expanding_multiples
 
     def _init_actor(self, actor_path):
         # DS Config
@@ -171,9 +171,10 @@ class DeepSpeedRLHFEngine():
                                             ds_config=ds_config,
                                             is_reward=False,
                                             args=self.args)
-        
+         
         print_rank_0("load critic model............")
-        model.load_state_dict(torch.load(os.path.join(critic_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
+        # if "reward" in critic_path:
+        #     model.load_state_dict(torch.load(os.path.join(critic_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
         # Split weights in two groups, one with weight decay and the other not.
         optimizer_grouped_parameters = get_optimizer_grouped_parameters(

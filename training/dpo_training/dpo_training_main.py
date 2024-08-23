@@ -299,7 +299,8 @@ def main():
         vis_root=args.image_folder,
         vis_processor=image_processor,
         tokenizer=tokenizer,
-        template=args.template        
+        template=args.template,
+        max_ranked_candidate_num=args.ranked_candidate_num        
     )
 
     np_rng = np.random.RandomState(seed=args.seed)

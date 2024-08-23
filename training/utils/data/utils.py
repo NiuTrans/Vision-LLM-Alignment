@@ -144,6 +144,7 @@ class DataCollatorPadToMaxLenForRewardModel:
         
         image_num = []
         image_data = []
+        query_ids = []
         for single_data in data:
             if single_data['image'][0] is None:
                 image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width'])) 
@@ -151,7 +152,11 @@ class DataCollatorPadToMaxLenForRewardModel:
             else:
                 image_data.append(default_collate(single_data['image']))
                 image_num.append(single_data['image_num'])
-
+            try:
+                query_ids.append(single_data['query_id'])
+            except:
+                pass
+ 
         image = torch.concat(image_data, dim=0).reshape((-1,) + image_data[0].shape[-3:])
     
         batch['input_ids'] = input_ids
@@ -159,13 +164,15 @@ class DataCollatorPadToMaxLenForRewardModel:
         batch['attention_mask'] = attention_mask
         batch['image'] = image
         batch['image_num'] = image_num
+        batch['query_id'] = query_ids
         return batch
 
 class DataCollatorPadToMaxLenForPPOTraining:
 
-    def __init__(self, max_token_len, pad_token_id):
+    def __init__(self, max_token_len, pad_token_id, image_size):
         self.max_token_len = max_token_len
         self.pad_token_id = pad_token_id
+        self.image_size = image_size
 
     def __call__(self, data):
         batch = {}
@@ -185,12 +192,48 @@ class DataCollatorPadToMaxLenForPPOTraining:
                                         batch_first=True)
         attention_mask = torch.flip(attention_mask,  dims=[-1])
 
-        image = torch.concat([default_collate(f['image']) for f in data], dim=0).reshape((-1,) + data[0]["image"][0].shape[-3:])
+        image_num = []
+        image_data = []
+        image_sizes = []
+        for single_data in data:
+            if single_data['image'][0] is None:
+                if 'image_sizes' in single_data.keys():
+                    image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
+                    image_sizes.append(torch.LongTensor([123, 123]))
+                else:
+                    image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
+                
+                image_num.append(0)
+            else:
+                if 'image_sizes' in single_data.keys():
+                    if len(single_data['image_sizes']) != 0:
+                        image_sizes.append(default_collate(single_data['image_sizes']))
+                        if default_collate(single_data['image']).size(1) == 5:
+                            image_data.append(default_collate(single_data['image']))
+                        else:
+                            tmp_image = default_collate(single_data['image'])
+                            current_dim_size = tmp_image.size(1)
+                            padding_size = 5 - current_dim_size
+                            tmp_image = torch.nn.functional.pad(tmp_image, (0, 0, 0, 0, 0, 0, 0, padding_size), "constant", 0)
+                            image_data.append(tmp_image)
+                    else:
+                        image_data.append(default_collate(single_data['image']))
+                else:
+                    image_data.append(default_collate(single_data['image']))
+                
+                image_num.append(single_data['image_num'])
+
+        image = torch.concat(image_data, dim=0)
+
+        image_sizes = torch.concat(image_sizes, dim=0)
+
         image_num = [f['image_num'] for f in data]
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
         batch['image'] = image
+        if 'image_sizes' in single_data.keys():
+            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         return batch
 
@@ -203,23 +246,44 @@ class DataCollatorPadToMaxLenForPrediction:
 
     def __call__(self, data):
         batch = {}
-
+ 
         input_ids = data[0]['input_ids']
         labels = data[0]['labels']
         attention_mask = data[0]['attention_mask']
         sample_id = data[0]['id']
 
         if len(data[0]['image']) == 0:
-            image = torch.zeros(1, 3, self.image_size['height'],self.image_size['width']) 
+            if 'image_sizes' in data[0].keys():
+                image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
+                image_sizes.append(torch.LongTensor([123, 123]))
+            else:
+                image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
             image_num = [0]
         else:
-            image = torch.concat([default_collate(f['image']) for f in data], dim=0).reshape((-1,) + data[0]["image"][0].shape[-3:])
-            image_num = [data[0]['image_num']]
+            image_num = []
+            image_data = []
+            image_sizes = []
+            
+            for single_data in data:
+                if 'image_sizes' in single_data.keys():
+                    if len(single_data['image_sizes']) != 0:
+                        image_sizes.append(torch.LongTensor(default_collate(single_data['image_sizes'])))
+
+                image_data.append(default_collate(single_data['image'][0]))
+                    
+                image_num.append(single_data['image_num'])
+
+        image = torch.concat(image_data, dim=0)
+        
+        if 'image_sizes' in data[0].keys():
+            image_sizes = torch.concat(image_sizes, dim=0)
 
         batch['input_ids'] = torch.LongTensor(input_ids).unsqueeze(0)
         batch['labels'] = torch.LongTensor(labels).unsqueeze(0)
         batch['attention_mask'] = torch.LongTensor(attention_mask).unsqueeze(0)
         batch['image'] = image
+        if 'image_sizes' in data[0].keys():
+            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         batch['id'] = sample_id
         return batch

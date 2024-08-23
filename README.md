@@ -1,9 +1,11 @@
 # Vision-LLM Alignemnt Training (SFT+PPO/DPO)
-Vision-LLM-Alignment is a project designed to implement alignment training for visual large language models (LLMs).
-This includes SFT training, reward model training, and PPO/DPO training.
-If additional alignment algorithms need to be supported, please raise them in an issue.
+Vision-LLM-Alignment aims to implement alignment training for visual large language models (LLMs), encompassing SFT training, reward model training, and PPO/DPO training. 
+For the integration of additional alignment algorithms or to report any arising bugs, please submit an issue.
+
 
 ## Changelog
+- [2024/08/21] 💪We released __RoVRM:A Robust Visual Reward Model Optimized via Auxiliary Textual Preference Data__, which is trained and applied for human-alignment training based on this repository.[[Paper]()][[Checkpoints](https://huggingface.co/wangclnlp/RoVRM)]
+- [2024/08/19] We support for training the [LLaVA-NeXT](https://huggingface.co/collections/llava-hf/llava-next-65f75c4afac77fd37dbbe6cf) (as known as LLaVA-1.6). You just need to set the `model_architecture` parameter to "llava_next", and specify the LLaVA-NeXT model path with `from_checkpoint`.
 - [2024/07/18] We provide a large-scale vision feedback dataset. It is a combination of the following high-quality vision feedback datasets. The dataset can be found in [wangclnlp/vision-feedback-mix-binarized](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized) and [wangclnlp/vision-feedback-mix-binarized-cleaned](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized-cleaned).
 - [2024/07/10] We support the direct loading of a LLaVA model in all training stages, including SFT training, RM training, and PPO/DPO training.
 - [2024/07/07] We support the direct loading of a LLaVA model during the SFT training phase. You just need to set the `model_architecture` parameter to "llava" and specify the LLaVA model path with `from_checkpoint`. Support for this functionality during the DPO, RM training, and PPO junction phases will be introduced soon.
@@ -46,18 +48,26 @@ bash run_ppo_training.sh
 bash run_predict.sh 
 ```
 
-## Supported Models
+## Supported Models for Training a Vision-LLM from Scratch.
 | LLM | Model size |
 |:---:|:---:|
 | LLaMA-2 | 7B/13B/70B |
 | LLaMA-3 | 8B/70B |
 
-| Vision Model |
+| Vision Projector |
 |:---:|
 | clip-vit-large-patch14 |
 | clip-vit-large-patch14-336 |
 
-Note: Other LLMs with the same architecture as LLaMA-2/3 are also supported. You can also add arbitrary model architectures by modifying this `training/utils/model/build_model.py`.
+## Supported Vision-LLM for Reward Model Training, PPO Training, and DPO Training.
+| LLM | Model size |
+|:---:|:---:|
+| LLaVA | 7B/13B |
+| LLaMA-1.5 | 7B/13B |
+| LLaMA-NeXT/-1.6 | 7B/13B |
+
+Note: Other LLMs with similar architectures are also supported.
+Additionally, custom model architectures can be incorporated by modifying `training/utils/model/build_model.py`(loading model) and `training/utils/data/DST.py`(template).
 
 ## Acknowledgement
 We commence by utilizing the exceptional codebase provided by [DeepSpeed-VisualChat](https://github.com/microsoft/DeepSpeedExamples/tree/master/applications/DeepSpeed-VisualChat) 🌹🌹🌹.
@@ -69,6 +79,19 @@ We thank the following papers:
 [1] Ouyang, Long, et al. "Training language models to follow instructions with human feedback." Advances in neural information processing systems 35 (2022): 27730-27744.
 [2] Rafailov, Rafael, et al. "Direct preference optimization: Your language model is secretly a reward model." Advances in Neural Information Processing Systems 36 (2024).
 [3] Liu, Haotian, et al. "Visual instruction tuning." Advances in neural information processing systems 36 (2024).
+```
+
+Please cite our paper if you find the repo helpful in your work:
+```bash
+@misc{wang2024rovrmrobustvisualreward,
+      title={RoVRM: A Robust Visual Reward Model Optimized via Auxiliary Textual Preference Data}, 
+      author={Chenglong Wang and Yang Gan and Yifu Huo and Yongyu Mu and Murun Yang and Qiaozhi He and Tong Xiao and Chunliang Zhang and Tongran Liu and Quan Du and Di Yang and Jingbo Zhu},
+      year={2024},
+      eprint={2408.12109},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2408.12109}, 
+}
 ```
 
 

@@ -100,12 +100,16 @@ class VQADataset(Dataset):
         image_path = os.path.join(self.vis_root, ann["image"])
         save_debug_image(image_path, data_debug_path, data_debug_counter, get_rank(), img_idx=0)
         image = Image.open(image_path).convert("RGB")
-        image = self.vis_processor(image)
+        image_outputs = self.vis_processor(image)
         try:
-            image = image['pixel_values'][0]
-            return image
+            image = image_outputs['pixel_values'][0]
+            if self.template == 'llava_next':
+                image_sizes = list(image_outputs['image_sizes'][0])
+                return image, image_sizes
+            else:
+                return image
         except:
-            return image
+            return image_outputs
     
     def post_process_text_image_count(self, text, image_num, offset=0):
         for i in range(1+offset, image_num+1+offset):
@@ -141,7 +145,7 @@ class VQADataset(Dataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=768,
+            max_length=512,
         )
         if res["input_ids"][-1] != self.tokenizer.eos_token_id and self.add_eos:
             res["input_ids"].append(self.tokenizer.eos_token_id)
@@ -151,7 +155,7 @@ class VQADataset(Dataset):
         # ignore instruction_token
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
-                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=768
+                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=512
             )
             labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]) :]
 
@@ -175,14 +179,19 @@ class VQADataset(Dataset):
 
     def merge_all_images(self, res_list, text):
         image_number = 0
-        original_output = {"input_ids": [], "attention_mask": [], "labels": [], "image": [], "score": []} #copy.deepcopy(self.system_instruct)
+        original_output = {"input_ids": [], "attention_mask": [], "labels": [], "image": [], "score": [], "query_id":[]} #copy.deepcopy(self.system_instruct)
         for res in res_list:
             original_output["input_ids"] = original_output["input_ids"] + res["input_ids"]
             original_output["attention_mask"] = original_output["attention_mask"] + res["attention_mask"]
             original_output["labels"] = original_output["labels"] + res["labels"]
             if "score" in res.keys():
                 original_output["score"] = original_output["score"] + res["score"]
-            
+            if "query_id" in res.keys():
+                original_output["query_id"] = original_output["query_id"] + res["query_id"]
+
+            if "image_sizes" in res.keys():
+                original_output.update(image_sizes=res["image_sizes"])
+
             if DST.DEFAULT_IMAGE_TOKEN in text["instruction"]:
                 image_number = 1
                 original_output["image"] = original_output["image"] + [res["image"]]

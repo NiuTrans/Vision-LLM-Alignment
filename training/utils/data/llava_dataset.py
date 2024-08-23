@@ -139,6 +139,96 @@ class LlavaDataset(VQADataset):
 
 
 class LlavaComparsionDataset(VQADataset):
+    def __init__(self, data_path, data_debug_path, per_sample_image, tokenizer, vis_processor, vis_root=None, max_ranked_candidate_num=4, **kwargs):
+        self.max_cand_num = max_ranked_candidate_num
+        assert os.path.isdir(vis_root), f"LlavaDataset image directory {vis_root} not found, you need to download 2017 Train images from https://cocodataset.org/#download"
+        ann_paths = [data_path]
+        for idx in range(len(ann_paths)):
+            assert os.path.isfile(ann_paths[idx]), f"LlavaDataset annotation file {ann_paths[idx]} not found, you need to download it from https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K"
+        per_sample_image = 1
+        super().__init__(data_path, data_debug_path, per_sample_image, tokenizer, vis_processor,
+                         vis_root, ann_paths, **kwargs)
+
+    def _add_instance_ids(self, key="id"):
+        for idx, ann in enumerate(self.annotation):
+            ann[key] = str(idx)
+
+    def __getitem__(self, index):
+        outputs = []
+        res_list = []
+        for ann in self.annotation[index]:
+            if ann['image'] != None:
+                image = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
+            else:
+                image = None
+            
+            text = self.process_text(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter,
+                                    first_message=(not res_list))
+            self.data_debug_counter += 1
+
+            ranked_candidates = text['answer']
+            query_id = [ann["id"]]
+
+            
+            if len(ranked_candidates) > len(ranked_candidates):
+                pass
+            else:
+                candi_num = len(ranked_candidates)
+                for rc in ranked_candidates:
+                    res_list = []
+                    text_tmp = {'instruction': text['instruction'], 'answer': rc}
+                    res = self.tokenize(text_tmp)
+                    res.update(image=image)
+                    res.update(text_tmp)
+                    res.update(query_id=query_id)
+                    res_list.append(res)
+                    output = self.merge_all_images(res_list, text)
+                    outputs.append(output)
+                for i in range(self.max_cand_num - candi_num):
+                    tmp = {
+                        "input_ids": [0 for item in outputs[0]['input_ids']],
+                        "attention_mask": [0 for item in outputs[0]['attention_mask']],
+                        "labels": [0 for item in outputs[0]['labels']],
+                        "score": [],
+                        "image": [None for item in outputs[0]['image']],
+                        "image_num": 0
+                    }
+                    tmp["input_ids"][0] = -1
+                    outputs.append(tmp)
+        return outputs
+
+    def process_text(self, ann, data_debug_path=None, data_debug_counter=0, first_message=False):
+        question = ann["conversations"][0]["value"]
+        # remove '<image>' tag and '\n'
+        # question = question.replace("<image>", "").replace("\n", "")
+        question = question.replace("<image>", "")
+        question = question.strip("USER:").strip("ASSISTANT:")
+        question = question.strip("\n")
+        question = question.strip(" ")
+
+        end_of_token = ""
+        if self.template == "llama_3":
+            end_of_token = DST.LLAMA3_HUMAN_QUESTION_PRETOKEN_END
+        elif self.template == "llama_2":
+            end_of_token = DST.LLAMA2_HUMAN_QUESTION_PRETOKEN_END
+        elif self.template == "vicuna":
+            end_of_token = DST.VICUNA_HUMAN_QUESTION_PRETOKEN_END
+        
+        for idx in range(len(ann["conversations"][1]["value"])):
+            ann["conversations"][1]["value"][idx] += end_of_token
+
+        answer = ann["conversations"][1]["value"]
+        instruction = self.prompter(question, with_image=True, first_message=first_message, template=self.template)
+        
+        save_debug_text([instruction, answer], data_debug_path, data_debug_counter, get_rank())
+        
+        return dict(instruction=instruction, answer=answer)
+
+class LlavaRMPaddingDataset(VQADataset):
     def __init__(self, data_path, data_debug_path, per_sample_image, tokenizer, vis_processor, vis_root=None, **kwargs):
         assert os.path.isdir(vis_root), f"LlavaDataset image directory {vis_root} not found, you need to download 2017 Train images from https://cocodataset.org/#download"
         ann_paths = [data_path]
@@ -170,15 +260,34 @@ class LlavaComparsionDataset(VQADataset):
             self.data_debug_counter += 1
 
             ranked_candidates = text['answer']
-            for rc in ranked_candidates:
-                res_list = []
-                text_tmp = {'instruction': text['instruction'], 'answer': rc}
-                res = self.tokenize(text_tmp)
-                res.update(image=image)
-                res.update(text_tmp)
-                res_list.append(res)
-                output = self.merge_all_images(res_list, text)
-                outputs.append(output)
+
+            self.max_cand_num = 4
+            if len(ranked_candidates) > self.max_cand_num:
+                pass
+            else:
+                candi_num = len(ranked_candidates)
+                for rc in ranked_candidates:
+                    res_list = []
+                    text_tmp = {'instruction': text['instruction'], 'answer': rc}
+                    res = self.tokenize(text_tmp)
+                    res.update(image=image)
+                    res.update(text_tmp)
+                    res_list.append(res)
+                    output = self.merge_all_images(res_list, text)
+                    outputs.append(output)
+                for i in range(self.max_cand_num - candi_num):
+                    # import pdb; pdb.set_trace()
+
+                    tmp = {
+                        "input_ids": [0 for item in outputs[0]['input_ids']],
+                        "attention_mask": [0 for item in outputs[0]['attention_mask']],
+                        "labels": [0 for item in outputs[0]['labels']],
+                        "score": [],
+                        "image": [None for item in outputs[0]['image']],
+                        "image_num": 0
+                    }
+                    tmp["input_ids"][0] = -1
+                    outputs.append(tmp)
         return outputs
 
     def process_text(self, ann, data_debug_path=None, data_debug_counter=0, first_message=False):
@@ -207,6 +316,8 @@ class LlavaComparsionDataset(VQADataset):
         save_debug_text([instruction, answer], data_debug_path, data_debug_counter, get_rank())
         
         return dict(instruction=instruction, answer=answer)
+
+
 
 class LlavaRewardMseDataset(VQADataset):
     def __init__(self, data_path, data_debug_path, per_sample_image, tokenizer, vis_processor, vis_root=None, **kwargs):
@@ -301,17 +412,17 @@ class LlavaPPODataset(VQADataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=768,
+            max_length=512,
         )
         if (res["input_ids"][-1] == self.tokenizer.eos_token_id) and (not self.add_eos):
-            res["input_ids"] = res["input_id"][0:-1]
+            res["input_ids"] = res["input_ids"][0:-1]
             res["attention_mask"] = res["attention_mask"][0:-1]
 
         labels = copy.deepcopy(res["input_ids"])
         # ignore instruction_token
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
-                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=768
+                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=512
             )
             labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]) :]
 
@@ -321,16 +432,30 @@ class LlavaPPODataset(VQADataset):
     def __getitem__(self, index):
         res_list = []
         for ann in self.annotation[index]:
-            image = self.process_image(ann,
-                                    data_debug_path=self.data_debug_path,
-                                    data_debug_counter=self.data_debug_counter)
+            if ann['image'] != None:
+                if self.template == 'llava_next':
+                    image, image_sizes = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
+                else:
+                    image = self.process_image(ann,
+                                            data_debug_path=self.data_debug_path,
+                                            data_debug_counter=self.data_debug_counter)
+                with_image = True
+            else:
+                image = None
+                with_image = False
+            
             text = self.process_text(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter,
-                                    first_message=(not res_list))
+                                    first_message=True,
+                                    with_image=with_image)
 
             self.data_debug_counter += 1
             res = self.tokenize(text)
+            if self.template == 'llava_next':
+                res.update(image_sizes=image_sizes)
             res.update(image=image)
             res.update(text)
             res_list.append(res)
@@ -338,7 +463,7 @@ class LlavaPPODataset(VQADataset):
         output = self.merge_all_images(res_list, text)
         return output
 
-    def process_text(self, ann, data_debug_path=None, data_debug_counter=0, first_message=False):
+    def process_text(self, ann, data_debug_path=None, data_debug_counter=0, first_message=False, with_image=False):
         question = ann["conversations"][0]["value"]
         # remove '<image>' tag and '\n'
         # question = question.replace("<image>", "").replace("\n", "")
@@ -352,7 +477,7 @@ class LlavaPPODataset(VQADataset):
             end_of_token = DST.VICUNA_HUMAN_QUESTION_PRETOKEN_END
 
         answer = ann["conversations"][1]["value"] + end_of_token
-        instruction = self.prompter(question, with_image=True, first_message=first_message, template=self.template)
+        instruction = self.prompter(question, with_image=with_image, first_message=first_message, template=self.template)
         
         save_debug_text([instruction, answer], data_debug_path, data_debug_counter, get_rank())
         
@@ -379,7 +504,7 @@ class LlavaPredictDataset(VQADataset):
             max_length=512,
         )
         if (res["input_ids"][-1] == self.tokenizer.eos_token_id) and (not self.add_eos):
-            res["input_ids"] = res["input_id"][0:-1]
+            res["input_ids"] = res["input_ids"][0:-1]
             res["attention_mask"] = res["attention_mask"][0:-1]
 
         labels = copy.deepcopy(res["input_ids"])
@@ -396,23 +521,26 @@ class LlavaPredictDataset(VQADataset):
     def __getitem__(self, index):
         res_list = []
         for ann in self.annotation[index]:
-            if ann['image'] != None:
+            if self.template == 'llava_next':
+                image, image_sizes = self.process_image(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)
+            else:
                 image = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
                                         data_debug_counter=self.data_debug_counter)
-                with_image = True
-            else:
-                image = None
-                with_image = False
+            with_image = True
 
             text = self.process_text(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter,
-                                    first_message=(not res_list),
+                                    first_message=True,
                                     with_image=with_image)
      
             self.data_debug_counter += 1
             res = self.tokenize(text)
+            if self.template == 'llava_next':
+                res.update(image_sizes=image_sizes)
             res.update(image=image)
             res.update(text)
             id_dict = {
@@ -436,6 +564,9 @@ class LlavaPredictDataset(VQADataset):
             if DST.DEFAULT_IMAGE_TOKEN in text["instruction"]:
                 image_number += 1
                 original_output["image"] = original_output["image"] + [res["image"]]
+
+                if "image_sizes" in res.keys():
+                    original_output.update(image_sizes=[res["image_sizes"]])
 
         if image_number == 0:
             print("Warning: Here is input without image")

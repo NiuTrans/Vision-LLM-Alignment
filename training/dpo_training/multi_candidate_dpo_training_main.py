@@ -225,7 +225,7 @@ def parse_args():
         help='Specifying the checkpoint directory to be loaded.')
     parser.add_argument('--template',
                         type=str,
-                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna"],)
+                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -397,11 +397,18 @@ def main():
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
             batch = to_device(batch, device)  #torch.size(1, 3, 224, 224]) #torch.Size([1, 1, 3, 224, 224])
-            images = batch["image"].half() 
-            input_ids = batch["input_ids"]
-            attention_mask = batch["attention_mask"]
-            labels = batch["labels"]
-            image_nums = batch['image_num']
+            chosen_idx = [i for i in range(len(batch["input_ids"])) if (batch['input_ids'][i][0] != -1)]
+
+            batch["image"] = [batch["image"][i] for i in chosen_idx]
+            batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
+            batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
+            batch["labels"] = [batch["labels"][i] for i in chosen_idx]
+            # import pdb;pdb.set_trace()
+            
+            input_ids = torch.stack(batch["input_ids"])
+            attention_mask = torch.stack(batch["attention_mask"])
+            labels = torch.stack(batch["labels"])
+            images = torch.stack(batch["image"])
     
             if args.model_architecture == "default":
                 outputs_logits = model(images,
@@ -500,7 +507,7 @@ def main():
         
         
         if args.global_rank == 0:
-            save_hf_format(model, tokenizer, args, f'{args.output_dir}/epoch-{epoch}')
+            save_hf_format(model, tokenizer, args, f'epoch-{epoch}')
         if args.zero_stage == 3:
             # For zero stage 3, each gpu only has a part of the model, so we need a special save function
             save_zero_three_model(model,

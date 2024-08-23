@@ -8,6 +8,7 @@ import numpy as np
 DEFAULT_SYSTEM_TOKEN="### System instuction:"
 DEFAULT_PROMPT = f"You are a helpful language and vision assistant. You are able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language.\n\n"
 
+
 DEFAULT_IMAGE_TOKEN = "<image>"
 DEFAULT_HUMAN_TOKEN = "### Human:"
 DEFAULT_HUMAN_QUESTION_PRETOKEN = "### Question:"
@@ -41,8 +42,10 @@ VICUNA_HUMAN_QUESTION_PRETOKEN = "USER: "
 VICUNA_HUMAN_QUESTION_PRETOKEN_END = "</s>"
 VICUNA_ASSISTANT_TOKEN = " ASSISTANT: "
 
+# llava
+SYSTEM_MESSAGE_LLAVA = f"A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
 LLAVA_HUMAN_QUESTION_PRETOKEN = "USER: "
-LLAVA_ASSISTANT_TOKEN = "\nASSISTANT:"
+LLAVA_ASSISTANT_TOKEN = " ASSISTANT:"
 
 special_token_list = [DEFAULT_IMAGE_TOKEN] # used for easy image # replacement
 
@@ -85,7 +88,7 @@ VICUNA_TEMPLATE = {
 
 LLAVA_TEMPLATE = {
     "description": "Template for the LlaVA models.",
-    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_HUMAN_IMAGE_PRETOKEN}{DEFAULT_IMAGE_TOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
+    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
     "prompt_qa_without_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
 }
 
@@ -105,22 +108,8 @@ class Prompter:
                     res = LLAMA_3_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template == "vicuna":
                     res = VICUNA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
-                elif template == "llava":
+                elif template in ["llava", "llava_next"]:
                     res = LLAVA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
-                
-                
-                if num_images >= 1:
-                    tmp_dict = {
-                        1: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        2: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        3: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        4: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        5: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        6: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        7: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                        8: f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n",
-                    }
-                    res = res.replace(f"{DEFAULT_HUMAN_IMAGE_PRETOKEN}\n{DEFAULT_IMAGE_TOKEN}\n\n", tmp_dict[num_images])
 
             else:
                 if template == "default":
@@ -131,7 +120,7 @@ class Prompter:
                     res = LLAMA_3_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template == "vicuna":
                     res = VICUNA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
-                elif template == "llava":
+                elif template in ["llava", "llava_next"]:
                     res = LLAVA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
             
             if first_message:
@@ -142,7 +131,9 @@ class Prompter:
                 elif template == "llama_2":
                     res = SYSTEM_MESSEGE_LLAMA2 + res.replace(f"{LLAMA2_HUMAN_QUESTION_PRETOKEN}","",1)
                 elif template == "vicuna":
-                    res = SYSTEM_MESSEGE_VICUNA + res
+                    res = SYSTEM_MESSEGE_VICUNA + " " + res
+                elif template in ["llava", "llava_next"]:
+                    res = SYSTEM_MESSAGE_LLAVA + " " + res
 
         return res
 

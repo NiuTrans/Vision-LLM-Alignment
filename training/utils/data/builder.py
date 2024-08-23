@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from .llava_dataset import LlavaDataset, LlavaComparsionDataset, LlavaPPODataset, LlavaPredictDataset, LlavaRewardMseDataset, LlavaRewardEvalDataset
+from .llava_dataset import LlavaDataset, LlavaComparsionDataset, LlavaPPODataset, LlavaPredictDataset, LlavaRewardMseDataset, LlavaRewardEvalDataset, LlavaRMPaddingDataset 
 from .vqa_dataset import ConcatDataset
 from training.utils.utils import print_rank_0
 
@@ -20,6 +20,14 @@ def build_dataset(data_path, data_debug_path, dataset_name, dataset_sample,
     
     if dataset_name == "llava_reward":
         dataset = LlavaComparsionDataset(
+            data_path,
+            data_debug_path,
+            dataset_concatenate_samples,
+            vis_root=vis_root,
+            **kwargs,
+        )
+    elif dataset_name == "llava_reward_padding":
+        dataset = LlavaRMPaddingDataset(
             data_path,
             data_debug_path,
             dataset_concatenate_samples,

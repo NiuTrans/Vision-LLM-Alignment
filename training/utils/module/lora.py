@@ -81,7 +81,7 @@ class LinearLayer_LoRA(nn.Module):
                 self.bias) + (self.lora_dropout(input) @ self.lora_right_weight
                               @ self.lora_left_weight) * self.lora_scaling
 
-
+ 
 # convert the linear layer to LoRA
 def convert_linear_layer_to_lora(model,
                                  part_module_name,
@@ -89,8 +89,13 @@ def convert_linear_layer_to_lora(model,
                                  lora_scaling=1,
                                  lora_droppout=0):
     repalce_name = []
+    part_module_name = part_module_name.split(",")
     for name, module in model.named_modules():
-        if isinstance(module, nn.Linear) and part_module_name in name:
+        moudle_falg = False
+        for part_module_name_sub in part_module_name:
+            if part_module_name_sub in name:
+                moudle_falg = True
+        if isinstance(module, nn.Linear) and moudle_falg:
             repalce_name.append(name)
     for name in repalce_name:
         module = recursive_getattr(model, name)

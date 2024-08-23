@@ -1,6 +1,3 @@
-from multiprocessing import process
-from platform import processor
-from networkx import general_random_intersection_graph
 import torch
 import torch.nn.functional as F
 
@@ -41,8 +38,7 @@ def sampling(actor_model,
         
         sub_attention_mask = attention_mask[index]
         
-        sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
-        # from training.utils.pdb import pdb; pdb.set_trace()
+        sub_lang = lang[index][sum(sub_attention_mask==pad_token_id):].unsqueeze(0)
         res = actor_model.generate(sub_img, sub_lang, 
                                     generation_length=max_new_tokens, 
                                     **generation_kwargs)
@@ -52,7 +48,8 @@ def sampling(actor_model,
     return all_res
 
 def sampling_llava(actor_model,
-            img, lang, 
+            img, lang,
+            image_sizes = None, 
             attention_mask=None,
             pad_token_id=0,
             topk=50,
@@ -86,13 +83,19 @@ def sampling_llava(actor_model,
             sub_img = [img[index]]   # reused by the prediction, and there is a situation where the image is None.
         
         sub_attention_mask = attention_mask[index]
-        sub_lang = lang[index].unsqueeze(0)[sum(sub_attention_mask==pad_token_id):]
-
+        sub_lang = lang[index][sum(sub_attention_mask==pad_token_id):].unsqueeze(0)
+        
         if sub_img == [None]:
             res = actor_model.generate(input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][lang.shape[1]:]
         else:
-            res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][lang.shape[1]:]
-        res_text = processor.decode(res,skip_special_tokens=True)       
+            if image_sizes is not None:
+                sub_image_sizes = image_sizes[index].unsqueeze(0)
+                res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, 
+                                           image_sizes=sub_image_sizes, max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
+            else:
+                res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, 
+                                           max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
+        res_text = processor.decode(res, skip_special_tokens=True)       
         all_res.append([res, res_text])
     actor_model.train()
     return all_res
@@ -108,21 +111,59 @@ def compute_logprobs_from_actor_and_ref(actor_model,
                                     input_ids,
                                     input_labels=None,
                                     attention_mask=None,
-                                    image_num=None):
+                                    image_num=None,
+                                    image_sizes = None,
+                                    model_architecture="default"):
     with torch.no_grad():
-        logits = actor_model(
-                    images,
-                    input_ids,
-                    attention_mask=attention_mask,
-                    input_labels=input_labels,
-                    image_num=image_num)[1]
+        if model_architecture=="default":
+            logits = actor_model(
+                        images,
+                        input_ids,
+                        attention_mask=attention_mask,
+                        input_labels=input_labels,
+                        image_num=image_num)[1]
 
-        ref_logits = ref_model(
-                    images,
-                    input_ids,
-                    attention_mask=attention_mask,
-                    input_labels=input_labels,
-                    image_num=image_num)[1]
+            ref_logits = ref_model(
+                        images,
+                        input_ids,
+                        attention_mask=attention_mask,
+                        input_labels=input_labels,
+                        image_num=image_num)[1]
+        elif model_architecture in ["llava", "llava_next"]:
+            if image_sizes is not None:
+                outputs = actor_model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        image_sizes = image_sizes,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=True)
+                logits = outputs.logits_drop_image
+
+                ref_outputs = ref_model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        image_sizes = image_sizes,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=True)
+                ref_logits = ref_outputs.logits_drop_image
+            else:
+                outputs = actor_model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=True)
+                logits = outputs.logits_drop_image
+
+                ref_outputs = ref_model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=True)
+                ref_logits = ref_outputs.logits_drop_image
     
     logprobs = gather_log_probs(logits[:, :-1, :], input_ids[:, 1:])
     ref_logprobs = gather_log_probs(ref_logits[:, :-1, :], input_ids[:,1:])
