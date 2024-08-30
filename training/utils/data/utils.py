@@ -145,24 +145,48 @@ class DataCollatorPadToMaxLenForRewardModel:
         image_num = []
         image_data = []
         query_ids = []
+        image_sizes = []
         for single_data in data:
             if single_data['image'][0] is None:
-                image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width'])) 
+                if 'image_sizes' in single_data.keys():
+                    image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
+                    image_sizes.append(torch.LongTensor([123, 123]))
+                else:
+                    image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
                 image_num.append(0)
             else:
-                image_data.append(default_collate(single_data['image']))
+                if 'image_sizes' in single_data.keys():
+                    if len(single_data['image_sizes']) != 0:
+                        image_sizes.append(default_collate(single_data['image_sizes']))
+                        if default_collate(single_data['image']).size(1) == 5:
+                            image_data.append(default_collate(single_data['image']))
+                        else:
+                            tmp_image = default_collate(single_data['image'])
+                            current_dim_size = tmp_image.size(1)
+                            padding_size = 5 - current_dim_size
+                            tmp_image = torch.nn.functional.pad(tmp_image, (0, 0, 0, 0, 0, 0, 0, padding_size), "constant", 0)
+                            image_data.append(tmp_image)
+                    else:
+                        image_data.append(default_collate(single_data['image']))
+                else:
+                    image_data.append(default_collate(single_data['image']))
+                
                 image_num.append(single_data['image_num'])
             try:
                 query_ids.append(single_data['query_id'])
             except:
                 pass
  
-        image = torch.concat(image_data, dim=0).reshape((-1,) + image_data[0].shape[-3:])
+        image = torch.concat(image_data, dim=0)
+
+        image_sizes = torch.concat(image_sizes, dim=0)
     
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
         batch['image'] = image
+        if 'image_sizes' in single_data.keys():
+            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         batch['query_id'] = query_ids
         return batch

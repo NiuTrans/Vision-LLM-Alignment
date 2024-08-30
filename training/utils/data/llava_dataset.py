@@ -157,12 +157,14 @@ class LlavaComparsionDataset(VQADataset):
         outputs = []
         res_list = []
         for ann in self.annotation[index]:
-            if ann['image'] != None:
+            if self.template == 'llava_next':
+                image, image_sizes = self.process_image(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)
+            else:
                 image = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
                                         data_debug_counter=self.data_debug_counter)
-            else:
-                image = None
             
             text = self.process_text(ann,
                                     data_debug_path=self.data_debug_path,
@@ -183,11 +185,14 @@ class LlavaComparsionDataset(VQADataset):
                     text_tmp = {'instruction': text['instruction'], 'answer': rc}
                     res = self.tokenize(text_tmp)
                     res.update(image=image)
+                    if self.template == 'llava_next':
+                        res.update(image_sizes=image_sizes)
                     res.update(text_tmp)
                     res.update(query_id=query_id)
                     res_list.append(res)
                     output = self.merge_all_images(res_list, text)
                     outputs.append(output)
+
                 for i in range(self.max_cand_num - candi_num):
                     tmp = {
                         "input_ids": [0 for item in outputs[0]['input_ids']],

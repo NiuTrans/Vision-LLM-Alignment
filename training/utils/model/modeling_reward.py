@@ -105,7 +105,6 @@ def create_reward_or_critic_model(
             training_reward_stage=False,
             args=None):
     
-
     if args.reward_model_architecture=="default" and is_reward:
         vis_llm, reward_image_processor, reward_tokenizer = create_dsvl_model_and_transforms(text_tokenizer=text_tokenizer,
                                                                                             ds_config=ds_config,
@@ -190,7 +189,8 @@ class ViRewardModel(nn.Module):
         self.rwtranrsformer.gradient_checkpointing_disable()
 
     def forward(self,
-                img, lang, 
+                img, lang,
+                image_sizes=None, 
                 attention_mask=None,
                 input_labels=None,
                 image_num=1,
@@ -213,13 +213,23 @@ class ViRewardModel(nn.Module):
                     return_dict)
             hidden_states = transformer_outputs
         elif self.vis_architecture in ["llava", "llava_next"]:
-            transformer_outputs = self.rwtranrsformer(
-                    input_ids=lang,
-                    pixel_values=img, 
-                    attention_mask=attention_mask,
-                    labels=input_labels,
-                    output_hidden_states=output_hidden_states,
-                    return_dict=return_dict)
+            if image_sizes is not None:
+                transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img,
+                        image_sizes = image_sizes, 
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
+            else:
+                transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img, 
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
             
             hidden_states = transformer_outputs.hidden_last_layer_drop_image
 
@@ -243,7 +253,7 @@ class ViRewardModel(nn.Module):
 
     def forward_value(self,
                     img, lang,
-                    image_sizes = None, 
+                    image_sizes=None, 
                     attention_mask=None,
                     input_labels=None,
                     image_num=None,

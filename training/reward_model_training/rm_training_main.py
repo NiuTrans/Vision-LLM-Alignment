@@ -175,6 +175,10 @@ def parse_args():
     )
     parser.add_argument("--vision_reward_model_name_or_path", default="openai/clip-vit-large-patch14", type=str)
     parser.add_argument("--model_architecture", default="default", type=str)
+    parser.add_argument("--reward_model_architecture", default="default", type=str)
+    
+    parser.add_argument("--reward_base_model", default="default", type=str)
+
     parser.add_argument(
         "--enable_mmca_attention",
         action='store_true',
@@ -231,7 +235,8 @@ def parse_args():
                         help="Total number of candidate LLMs.")
     parser.add_argument('--template',
                     type=str,
-                    choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
+                    choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava",
+                            "llava_next"],)
     parser.add_argument(
         '--from_checkpoint',
         type=str,
@@ -270,6 +275,10 @@ def parse_args():
     assert args.num_warmup_steps >= 0, "--num_warmup_steps must be >= 0"
     if 'qwen' in args.vision_reward_model_name_or_path.lower():
         assert args.vis_proj == 'baseline', "qwen's model only support baseline vis_proj as it has the perceiver module inside"
+    
+    args.reward_model_architecture = args.model_architecture
+    args.reward_base_model = args.from_checkpoint
+
     return args
 
 
@@ -305,7 +314,7 @@ def main():
         tokenizer.padding_side = 'right'
     else:
         tokenizer = None
-
+ 
     model, image_processor, tokenizer = create_reward_or_critic_model(
             text_tokenizer=tokenizer,
             ds_config=ds_config,
@@ -452,17 +461,31 @@ def main():
                 batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
                 batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
                 batch["labels"] = [batch["labels"][i] for i in chosen_idx]
-                # import pdb;pdb.set_trace()
                 
                 input_ids = torch.stack(batch["input_ids"])
                 attention_mask = torch.stack(batch["attention_mask"])
+                
                 labels = torch.stack(batch["labels"])
                 images = torch.stack(batch["image"])
+
+                if args.model_architecture == "llava_next":
+                    image_sizes = batch["image_sizes"]
+                    
+                    image_sizes = image_sizes.reshape(len(input_ids), 2)
+                    images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                else:
+                    image_sizes = None
+
+                labels_tmp = input_ids.clone()
+                attention_mask_tmp = attention_mask.clone()
+                attention_mask_tmp[attention_mask_tmp==0] = 1
+
                 reward_scores = model(
                     images ,
                     input_ids,
-                    attention_mask=attention_mask,
-                    input_labels=labels,
+                    image_sizes=image_sizes,
+                    attention_mask=attention_mask_tmp,
+                    input_labels=labels_tmp,
                     image_num=batch["image_num"],
                 )
                 if candidate_assigned == False:
@@ -508,17 +531,30 @@ def main():
             batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
             batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
             batch["labels"] = [batch["labels"][i] for i in chosen_idx]
-            # import pdb;pdb.set_trace()
-            
+
             input_ids = torch.stack(batch["input_ids"])
             attention_mask = torch.stack(batch["attention_mask"])
             labels = torch.stack(batch["labels"])
             images = torch.stack(batch["image"])
+
+            if args.model_architecture == "llava_next":
+                image_sizes = batch["image_sizes"]
+                
+                image_sizes = image_sizes.reshape(len(input_ids), 2)
+                images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+            else:
+                image_sizes = None
+            
+            labels_tmp = input_ids.clone()
+            attention_mask_tmp = attention_mask.clone()
+            attention_mask_tmp[attention_mask_tmp==0] = 1
+
             reward_scores = model(
                 images,
                 input_ids,
-                attention_mask=attention_mask,
-                input_labels=labels,
+                image_sizes=image_sizes,
+                attention_mask=attention_mask_tmp,
+                input_labels=labels_tmp,
                 image_num=batch["image_num"],
             )
 
