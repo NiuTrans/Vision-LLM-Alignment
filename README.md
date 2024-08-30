@@ -65,7 +65,7 @@ bash run_predict.sh
 | LLaVA | 7B/13B |
 | LLaMA-1.5 | 7B/13B |
 | LLaMA-NeXT/-1.6-vicuna | 7B/13B |
-| LLaMA-NeXT/-1.6-vicuna | 7B/13B |
+| LLaMA-NeXT/-1.6-mistral | 7B/13B |
 
 Note: Other LLMs with similar architectures are also supported.
 Additionally, custom model architectures can be incorporated by modifying `training/utils/model/build_model.py`(loading model) and `training/utils/data/DST.py`(template).
