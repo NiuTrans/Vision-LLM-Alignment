@@ -272,8 +272,6 @@ class CLIPVisionTowerS2(CLIPVisionTower):
         if self.is_loaded:
             print('{} is already loaded, `load_model` called again, skipping.'.format(self.vision_tower_name))
             return
-        if self.vision_tower_name == "openai/clip-vit-large-patch14-336":
-            self.vision_tower_name = "/mnt/wangchenglong/ganyang/models/clip-vit-large-patch14-336"
         print(self.vision_tower_name)
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
         self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name, device_map=device_map)
