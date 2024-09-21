@@ -153,6 +153,7 @@ class DataCollatorPadToMaxLenForRewardModel:
                     image_sizes.append(torch.LongTensor([123, 123]))
                 else:
                     image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
+                    image_sizes.append(torch.LongTensor([self.image_size['height'],self.image_size['width']]))
                 image_num.append(0)
             else:
                 if 'image_sizes' in single_data.keys():
@@ -170,6 +171,7 @@ class DataCollatorPadToMaxLenForRewardModel:
                         image_data.append(default_collate(single_data['image']))
                 else:
                     image_data.append(default_collate(single_data['image']))
+                    image_sizes.append(torch.LongTensor([self.image_size['height'],self.image_size['width']]))
                 
                 image_num.append(single_data['image_num'])
             try:
@@ -178,15 +180,15 @@ class DataCollatorPadToMaxLenForRewardModel:
                 pass
  
         image = torch.concat(image_data, dim=0)
-
         image_sizes = torch.concat(image_sizes, dim=0)
     
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
         batch['image'] = image
-        if 'image_sizes' in single_data.keys():
-            batch['image_sizes'] = image_sizes
+        # if 'image_sizes' in single_data.keys():
+        #     batch['image_sizes'] = image_sizes
+        batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         batch['query_id'] = query_ids
         return batch
@@ -226,6 +228,7 @@ class DataCollatorPadToMaxLenForPPOTraining:
                     image_sizes.append(torch.LongTensor([123, 123]))
                 else:
                     image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
+                    # image_sizes.append(torch.LongTensor([self.image_size['height'],self.image_size['width']]))
                 
                 image_num.append(0)
             else:
@@ -244,6 +247,7 @@ class DataCollatorPadToMaxLenForPPOTraining:
                         image_data.append(default_collate(single_data['image']))
                 else:
                     image_data.append(default_collate(single_data['image']))
+                    # image_sizes.append(torch.LongTensor([self.image_size['height'],self.image_size['width']]))
                 
                 image_num.append(single_data['image_num'])
 
