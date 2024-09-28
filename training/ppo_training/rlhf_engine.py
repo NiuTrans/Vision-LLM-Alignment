@@ -232,7 +232,7 @@ class DeepSpeedRLHFEngine():
                                             text_tokenizer=self.reward_tokenizer,
                                             ds_config=ds_config,
                                             is_reward=True,
-                                            args=self.args)
+                                            args=self.args) 
                                     
         print_rank_0("load reward model............")
         model.load_state_dict(torch.load(os.path.join(reward_path, 'pytorch_model.bin'), map_location='cpu'), strict=False)

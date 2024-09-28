@@ -106,6 +106,9 @@ class VQADataset(Dataset):
             if self.template == 'llava_next':
                 image_sizes = list(image_outputs['image_sizes'][0])
                 return image, image_sizes
+            elif self.template == 'llama-3.2-vision':
+                aspect_items = image_outputs
+                return image, aspect_items
             else:
                 return image
         except:
@@ -191,8 +194,13 @@ class VQADataset(Dataset):
 
             if "image_sizes" in res.keys():
                 original_output.update(image_sizes=res["image_sizes"])
+                
+            if "aspect_ratio_ids" in res.keys():
+                original_output.update(aspect_ratio_ids=[res["aspect_ratio_ids"]])
+            if "aspect_ratio_mask" in res.keys():
+                original_output.update(aspect_ratio_mask=[res["aspect_ratio_mask"]])
 
-            if DST.DEFAULT_IMAGE_TOKEN in text["instruction"]:
+            if (DST.DEFAULT_IMAGE_TOKEN in text["instruction"]) or ("<|image|>" in text["instruction"]):
                 image_number = 1
                 original_output["image"] = original_output["image"] + [res["image"]]
 

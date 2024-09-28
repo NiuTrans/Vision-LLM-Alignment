@@ -25,7 +25,8 @@ from rlhf_engine import DeepSpeedRLHFEngine
 from ppo_training_utils import (sampling, compute_logprobs_from_actor_and_ref, 
     compute_kl_reward_scores, get_advantages_and_returns, 
     critic_loss_fn, gather_log_probs,
-    actor_loss_fn, sampling_llava)
+    actor_loss_fn, sampling_llava,
+    sampling_llama)
 
 from transformers import AdamW
 sys.path.append(
@@ -348,7 +349,7 @@ def parse_args():
 
     parser.add_argument('--template',
                 type=str,
-                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava", "llava_next"],)
+                choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava", "llava_next", "llama-3.2-vision"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -388,7 +389,7 @@ def main():
 
     torch.distributed.barrier()
 
-    if args.model_architecture == "llava":
+    if args.model_architecture in ["llava", "llava-next", "llama-3.2-vision"]:
         tokenizer = None
         reward_tokenizer = None
     else:
@@ -434,18 +435,23 @@ def main():
     dataset = shuffle_dataset(dataset, np_rng)
     train_dataset, eval_dataset = split_dataset(dataset, args.data_train_split_ratio)
 
+    if args.model_architecture == "llama-3.2-vision":
+        image_size = rlhf_engine.actor_image_processor.size
+    else:
+        image_size = rlhf_engine.actor_image_processor.crop_size
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, rlhf_engine.actor_image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, image_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, rlhf_engine.actor_image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLenForPPOTraining(args.max_seq_len, rlhf_engine.actor_tokenizer_new.pad_token_id, image_size),
     )
 
     start_epoch = 0
@@ -461,6 +467,8 @@ def main():
         end_of_token = DST.LLAMA2_HUMAN_QUESTION_PRETOKEN_END
     elif args.template == "vicuna":
         end_of_token = DST.VICUNA_HUMAN_QUESTION_PRETOKEN_END
+    elif args.template == "llama-3.2-vision":
+        end_of_token = DST.LLAMA_3_2_HUMAN_QUESTION_PRETOKEN_END
 
     def evaluation(eval_dataloader):
         print_rank_0("***** Running training *****", args.global_rank)
@@ -470,11 +478,47 @@ def main():
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
+
+            if args.model_architecture == "llava_next":
+                image_sizes = batch["image_sizes"]
+                image_sizes = image_sizes.reshape(len(input_ids), 2)
+                images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                
+                original_images = images[:, 0, :, :]
+
+            elif args.model_architecture in ["llama-3.2-vision"]:
+                aspect_ratio_ids = batch["aspect_ratio_ids"]
+                aspect_ratio_mask = batch["aspect_ratio_mask"]
+                images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                image_sizes = None
+
+            else:
+                image_sizes = None
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
+
             with torch.no_grad():
                 # generation
                 if args.model_architecture == 'llava':
                     sampling_ans = sampling_llava(rlhf_engine.actor, 
                                 images, input_ids, 
+                                attention_mask=attention_mask, 
+                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                max_new_tokens=args.max_generation_length_of_sampling,
+                                processor=rlhf_engine.actor_tokenizer_new)
+                elif args.model_architecture == 'llava-next':
+                    sampling_ans = sampling_llava(rlhf_engine.actor, 
+                                images, input_ids,
+                                image_sizes=image_sizes, 
+                                attention_mask=attention_mask, 
+                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                max_new_tokens=args.max_generation_length_of_sampling,
+                                processor=rlhf_engine.actor_tokenizer_new)
+                elif args.model_architecture == 'llama-3.2-vision':
+                    sampling_ans = sampling_llama(rlhf_engine.actor, 
+                                images, input_ids,
+                                aspect_ratio_ids=aspect_ratio_ids,
+                                aspect_ratio_mask=aspect_ratio_mask, 
                                 attention_mask=attention_mask, 
                                 pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
                                 max_new_tokens=args.max_generation_length_of_sampling,
@@ -506,6 +550,9 @@ def main():
             with torch.no_grad():
                 reward_scores = rlhf_engine.reward.forward_value(images,
                                     reward_input_id,
+                                    image_sizes=image_sizes,
+                                    aspect_ratio_ids=aspect_ratio_ids,
+                                    aspect_ratio_mask=aspect_ratio_mask,
                                     attention_mask=reward_attention_mask,
                                     input_labels=reward_input_id,
                                     image_num=batch["image_num"]
@@ -540,20 +587,39 @@ def main():
             images = batch["image"].half() 
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
-            image_sizes = None
-
+ 
             if args.model_architecture == "llava_next":
                 image_sizes = batch["image_sizes"]
                 image_sizes = image_sizes.reshape(len(input_ids), 2)
                 images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
                 
                 original_images = images[:, 0, :, :]
+
+            elif args.model_architecture in ["llama-3.2-vision"]:
+                aspect_ratio_ids = batch["aspect_ratio_ids"]
+                aspect_ratio_mask = batch["aspect_ratio_mask"]
+                images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                image_sizes = None
+
+            else:
+                image_sizes = None
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
             
             # Step 1: sampling candidate answers
             if args.model_architecture in ["llava", "llava_next"]:
                 sampling_ans = sampling_llava(rlhf_engine.actor, 
                                 images, input_ids,
                                 image_sizes=image_sizes,
+                                attention_mask=attention_mask, 
+                                pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
+                                max_new_tokens=args.max_generation_length_of_sampling, 
+                                processor=rlhf_engine.actor_tokenizer_new)
+            elif args.model_architecture in ["llama-3.2-vision"]:
+                sampling_ans = sampling_llama(rlhf_engine.actor, 
+                                images, input_ids,
+                                aspect_ratio_ids=aspect_ratio_ids,
+                                aspect_ratio_mask=aspect_ratio_mask,
                                 attention_mask=attention_mask, 
                                 pad_token_id=rlhf_engine.actor_tokenizer_new.pad_token_id,
                                 max_new_tokens=args.max_generation_length_of_sampling, 
@@ -576,7 +642,7 @@ def main():
             # encoder with reward model's tokenizer
             question_answer_pairs = rlhf_engine.critic_tokenizer_new(question_answer_pairs_strinig, 
                                                                     padding=True, 
-                                                                    add_special_tokens=True,
+                                                                    add_special_tokens=False,
                                                                     return_tensors="pt")
 
             question_answer_pairs = to_device(question_answer_pairs, device)
@@ -602,13 +668,23 @@ def main():
                                         image_num=batch["image_num"]
                                     )["chosen_end_scores"]
 
+                elif args.reward_model_architecture in ["llama-3.2-vision"]:
+                    reward_scores = rlhf_engine.reward.forward_value(images,
+                                        reward_input_id,
+                                        aspect_ratio_ids=aspect_ratio_ids,
+                                        aspect_ratio_mask=aspect_ratio_mask,
+                                        attention_mask=reward_attention_mask,
+                                        input_labels=reward_input_id,   # not need to mask the prompt
+                                        image_num=batch["image_num"]
+                                    )["chosen_end_scores"]
+
             # employ reward queue for standardising reward scores.
             # (x - mean) / std
             reward_scores = rlhf_engine.reward_score_standard(reward_scores)
 
             # Step 3: computing KL and values of the crtic model
             # computing the label ids for the critic model
-            if args.model_architecture in ["llava", "llava_next"]:
+            if args.model_architecture in ["llava", "llava_next", "llama-3.2-vision"]:
                 critic_ids = [torch.cat((input_ids[index], sampling_ans[index][0]), dim=-1)
                     for index in range(len(input_ids))]
             else:
@@ -651,6 +727,8 @@ def main():
                 old_values = rlhf_engine.critic.forward_value(images,
                                                 critic_input_ids,
                                                 image_sizes=image_sizes,
+                                                aspect_ratio_ids=aspect_ratio_ids,
+                                                aspect_ratio_mask=aspect_ratio_mask,
                                                 attention_mask=critic_attention_mask,
                                                 input_labels=critic_input_ids,
                                                 image_num=batch["image_num"]
@@ -687,6 +765,15 @@ def main():
                                                 attention_mask=critic_attention_mask,
                                                 labels=critic_label_ids,
                                                 output_hidden_states=True).logits_drop_image
+                        elif args.model_architecture in ["llama-3.2-vision"]:
+                            actor_logits = rlhf_engine.actor(
+                                                input_ids=critic_input_ids,
+                                                pixel_values = images,
+                                                aspect_ratio_ids=aspect_ratio_ids,
+                                                aspect_ratio_mask=aspect_ratio_mask,
+                                                attention_mask=critic_attention_mask,
+                                                labels=critic_label_ids,
+                                                output_hidden_states=True).logits
                             
                         logprobs = gather_log_probs(actor_logits[:, :-1, :], critic_input_ids[:, 1:])
 
@@ -712,21 +799,15 @@ def main():
                 
                 # Step 5: update the actor and critic models
                 # update critic model
-                if image_sizes is not None:
-                    values = rlhf_engine.critic.forward_value(images,
-                                                        critic_input_ids,
-                                                        image_sizes=image_sizes,
-                                                        attention_mask=critic_attention_mask,
-                                                        input_labels=critic_input_ids,
-                                                        image_num=batch["image_num"]
-                                                    )["values"]
-                else:
-                    values = rlhf_engine.critic.forward_value(images,
-                                                        critic_input_ids,
-                                                        attention_mask=critic_attention_mask,
-                                                        input_labels=critic_input_ids,
-                                                        image_num=batch["image_num"]
-                                                    )["values"]
+                values = rlhf_engine.critic.forward_value(images,
+                                                    critic_input_ids,
+                                                    image_sizes=image_sizes,
+                                                    aspect_ratio_ids=aspect_ratio_ids,
+                                                    aspect_ratio_mask=aspect_ratio_mask,
+                                                    attention_mask=critic_attention_mask,
+                                                    input_labels=critic_input_ids,
+                                                    image_num=batch["image_num"]
+                                                )["values"]
 
                 critic_loss = critic_loss_fn(values=values[:, start:], 
                                             old_values=old_values[:,start:],
@@ -774,6 +855,15 @@ def main():
                                         attention_mask=critic_attention_mask,
                                         labels=critic_label_ids,
                                         output_hidden_states=True).logits_drop_image
+                elif args.model_architecture in ["llama-3.2-vision"]:
+                    actor_logits = rlhf_engine.actor(
+                                    input_ids=critic_input_ids,
+                                    pixel_values = images,
+                                    aspect_ratio_ids=aspect_ratio_ids,
+                                    aspect_ratio_mask=aspect_ratio_mask,
+                                    attention_mask=critic_attention_mask,
+                                    labels=critic_label_ids,
+                                    output_hidden_states=True).logits
 
                 actor_logprobs = gather_log_probs(actor_logits[:, :-1, :], critic_input_ids[:, 1:])
     

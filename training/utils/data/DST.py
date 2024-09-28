@@ -10,6 +10,7 @@ DEFAULT_PROMPT = f"You are a helpful language and vision assistant. You are able
 
 
 DEFAULT_IMAGE_TOKEN = "<image>"
+
 DEFAULT_HUMAN_TOKEN = "### Human:"
 DEFAULT_HUMAN_QUESTION_PRETOKEN = "### Question:"
 DEFAULT_QUESTION_TOKEN = "<question>"
@@ -36,7 +37,7 @@ LLAMA2_HUMAN_QUESTION_PRETOKEN_END = "</s><s>"
 LLAMA2_ASSISTANT_TOKEN = " [/INST] "
 
 # vicuna
-VICUNA_PROMPT = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. "
+VICUNA_PROMPT = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
 SYSTEM_MESSEGE_VICUNA=""+VICUNA_PROMPT+""
 VICUNA_HUMAN_QUESTION_PRETOKEN = "USER: "
 VICUNA_HUMAN_QUESTION_PRETOKEN_END = "</s>"
@@ -46,6 +47,13 @@ VICUNA_ASSISTANT_TOKEN = " ASSISTANT: "
 SYSTEM_MESSAGE_LLAVA = f"A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
 LLAVA_HUMAN_QUESTION_PRETOKEN = "USER: "
 LLAVA_ASSISTANT_TOKEN = " ASSISTANT:"
+
+# llama-3.2-vision
+SYSTEM_MESSAGE_LLAMA_3_2 = ""
+LLAMA_3_2_HUMAN_QUESTION_PRETOKEN = "<|start_header_id|>user<|end_header_id|>\n\n"
+LLAMA_3_2_HUMAN_QUESTION_PRETOKEN_END = "<|eot_id|>"
+LLAMA_3_2_ASSISTANT_TOKEN = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+
 
 special_token_list = [DEFAULT_IMAGE_TOKEN] # used for easy image # replacement
 
@@ -88,8 +96,14 @@ VICUNA_TEMPLATE = {
 
 LLAVA_TEMPLATE = {
     "description": "Template for the LlaVA models.",
-    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
+    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_QUESTION_TOKEN}</s>{LLAVA_ASSISTANT_TOKEN}''',
     "prompt_qa_without_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
+}
+
+LLAMA_3_2_TEMPLATE = {
+    "description": "Template for the LLaMA 3.2 model.",
+    "prompt_qa_with_image": f'''{LLAMA_3_2_HUMAN_QUESTION_PRETOKEN}<|image|>\n{DEFAULT_QUESTION_TOKEN}{LLAMA_3_2_ASSISTANT_TOKEN}''',
+    "prompt_qa_without_image": f'''{LLAMA_3_2_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAMA_3_2_ASSISTANT_TOKEN}''',
 }
 
 class Prompter:
@@ -110,6 +124,8 @@ class Prompter:
                     res = VICUNA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template in ["llava", "llava_next"]:
                     res = LLAVA_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
+                elif template in ["llama-3.2-vision"]:
+                    res = LLAMA_3_2_TEMPLATE["prompt_qa_with_image"].replace(DEFAULT_QUESTION_TOKEN, question)
 
             else:
                 if template == "default":
@@ -122,6 +138,8 @@ class Prompter:
                     res = VICUNA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
                 elif template in ["llava", "llava_next"]:
                     res = LLAVA_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
+                elif template in ["llama-3.2-vision"]:
+                    res = LLAMA_3_2_TEMPLATE["prompt_qa_without_image"].replace(DEFAULT_QUESTION_TOKEN, question)
             
             if first_message:
                 if template == "defalut":
@@ -134,6 +152,8 @@ class Prompter:
                     res = SYSTEM_MESSEGE_VICUNA + " " + res
                 elif template in ["llava", "llava_next"]:
                     res = SYSTEM_MESSAGE_LLAVA + " " + res
+                elif template in ["llama-3.2-vision"]:
+                    res = SYSTEM_MESSAGE_LLAMA_3_2 + "" + res
 
         return res
 

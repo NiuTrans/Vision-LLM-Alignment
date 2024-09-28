@@ -126,11 +126,16 @@ def create_reward_or_critic_model(
         print(f"load checkpoint from {args.from_checkpoint}")
         vis_llm.load_state_dict(torch.load(os.path.join(args.from_checkpoint, 'pytorch_model.bin'), map_location='cpu'), strict=False)
 
-    if is_reward and (args.reward_model_architecture=="llava" or args.reward_model_architecture=="llava_next"):
+    if is_reward and (args.reward_model_architecture in ["llava", "llava_next"]):
         vis_reward_model = ViRewardModel(vis_llm=vis_llm,
                                         tokenizer=reward_tokenizer,
                                         is_reward=is_reward,
                                         vis_architecture="llava")
+    elif is_reward and (args.reward_model_architecture in ["llama-3.2-vision"]):
+        vis_reward_model = ViRewardModel(vis_llm=vis_llm,
+                                        tokenizer=reward_tokenizer,
+                                        is_reward=is_reward,
+                                        vis_architecture="llama-3.2-vision")
     else:
         vis_reward_model = ViRewardModel(vis_llm=vis_llm,
                                         tokenizer=reward_tokenizer,
@@ -150,7 +155,7 @@ class ViRewardModel(nn.Module):
 
         if vis_architecture == "default":
             self.config = vis_llm.lang_decoder.config
-        elif vis_architecture in ["llava", "llava_next"]:
+        elif vis_architecture in ["llava", "llava_next", "llama-3.2-vision"]:
             self.config = vis_llm.language_model.config
 
         self.vis_architecture = vis_architecture
@@ -190,6 +195,8 @@ class ViRewardModel(nn.Module):
 
     def forward(self,
                 img, lang,
+                aspect_ratio_ids=None,
+                aspect_ratio_mask=None,
                 image_sizes=None, 
                 attention_mask=None,
                 input_labels=None,
@@ -232,6 +239,17 @@ class ViRewardModel(nn.Module):
                         return_dict=return_dict)
             
             hidden_states = transformer_outputs.hidden_last_layer_drop_image
+        elif self.vis_architecture in ["llama-3.2-vision"]:
+            transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img,
+                        aspect_ratio_ids=aspect_ratio_ids,
+                        aspect_ratio_mask=aspect_ratio_mask,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
+            hidden_states = transformer_outputs.hidden_states[-1]
 
         rewards = self.v_head(hidden_states).squeeze(-1)
 
@@ -253,7 +271,9 @@ class ViRewardModel(nn.Module):
 
     def forward_value(self,
                     img, lang,
-                    image_sizes=None, 
+                    image_sizes=None,
+                    aspect_ratio_ids=None,
+                    aspect_ratio_mask=None, 
                     attention_mask=None,
                     input_labels=None,
                     image_num=None,
@@ -292,9 +312,19 @@ class ViRewardModel(nn.Module):
                         attention_mask=attention_mask,
                         labels=input_labels,
                         output_hidden_states=output_hidden_states,
-                        return_dict=return_dict)
-            
+                        return_dict=return_dict)    
             hidden_states = transformer_outputs.hidden_last_layer_drop_image
+        elif self.vis_architecture in ["llama-3.2-vision"]:
+            transformer_outputs = self.rwtranrsformer(
+                        input_ids=lang,
+                        pixel_values=img,
+                        aspect_ratio_ids=aspect_ratio_ids,
+                        aspect_ratio_mask=aspect_ratio_mask,
+                        attention_mask=attention_mask,
+                        labels=input_labels,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict)
+            hidden_states = transformer_outputs.hidden_states[-1]
             
         rewards = self.v_head(hidden_states).squeeze(-1)
 

@@ -146,11 +146,17 @@ class DataCollatorPadToMaxLenForRewardModel:
         image_data = []
         query_ids = []
         image_sizes = []
+        aspect_ratio_ids = []
+        aspect_ratio_mask = []
         for single_data in data:
             if single_data['image'][0] is None:
                 if 'image_sizes' in single_data.keys():
                     image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
                     image_sizes.append(torch.LongTensor([123, 123]))
+                elif 'aspect_ratio_ids' in data[0].keys():
+                    image_data.append(torch.zeros(1, 4, 3, self.image_size['height'],self.image_size['width']))
+                    aspect_ratio_ids.append(torch.LongTensor([4]))
+                    aspect_ratio_mask.append(torch.LongTensor([[0,0,0,0]]))
                 else:
                     image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
                 image_num.append(0)
@@ -168,6 +174,11 @@ class DataCollatorPadToMaxLenForRewardModel:
                             image_data.append(tmp_image)
                     else:
                         image_data.append(default_collate(single_data['image']))
+                elif 'aspect_ratio_ids' in data[0].keys():
+                    aspect_ratio_ids.append(torch.LongTensor(default_collate(single_data['aspect_ratio_ids'])))
+                    aspect_ratio_mask.append(torch.LongTensor(default_collate(single_data['aspect_ratio_mask'])))
+
+                    image_data.append(default_collate(single_data['image']))
                 else:
                     image_data.append(default_collate(single_data['image']))
                 
@@ -176,17 +187,27 @@ class DataCollatorPadToMaxLenForRewardModel:
                 query_ids.append(single_data['query_id'])
             except:
                 pass
- 
-        image = torch.concat(image_data, dim=0)
 
-        image_sizes = torch.concat(image_sizes, dim=0)
+        if 'image_sizes' in data[0].keys():
+            image_sizes = torch.concat(image_sizes, dim=0)
+            batch['image_sizes'] = image_sizes
+
+        if 'aspect_ratio_ids' in data[0].keys():
+            torch.concat(aspect_ratio_ids, dim=-1).size()
+            aspect_ratio_ids = torch.concat(aspect_ratio_ids, dim=-2).squeeze(0)
+            aspect_ratio_mask = torch.concat(aspect_ratio_mask, dim=-3).squeeze(0)
+            
+            batch['aspect_ratio_ids'] = aspect_ratio_ids
+            batch['aspect_ratio_mask'] = aspect_ratio_mask
+
+            image = torch.concat(image_data, dim=0)
+        else:
+            image = torch.concat(image_data, dim=0)
     
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
         batch['image'] = image
-        if 'image_sizes' in single_data.keys():
-            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         batch['query_id'] = query_ids
         return batch
@@ -219,11 +240,17 @@ class DataCollatorPadToMaxLenForPPOTraining:
         image_num = []
         image_data = []
         image_sizes = []
+        aspect_ratio_ids = []
+        aspect_ratio_mask = []
         for single_data in data:
             if single_data['image'][0] is None:
                 if 'image_sizes' in single_data.keys():
                     image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
                     image_sizes.append(torch.LongTensor([123, 123]))
+                elif 'aspect_ratio_ids' in data[0].keys():
+                    image_data.append(torch.zeros(1, 4, 3, self.image_size['height'],self.image_size['width']))
+                    aspect_ratio_ids.append(torch.LongTensor([[4]]))
+                    aspect_ratio_mask.append(torch.LongTensor([[[0,0,0,0]]]))
                 else:
                     image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
                 
@@ -242,6 +269,11 @@ class DataCollatorPadToMaxLenForPPOTraining:
                             image_data.append(tmp_image)
                     else:
                         image_data.append(default_collate(single_data['image']))
+
+                elif 'aspect_ratio_ids' in data[0].keys():
+                    aspect_ratio_ids.append(torch.LongTensor(default_collate(single_data['aspect_ratio_ids'])))
+                    aspect_ratio_mask.append(torch.LongTensor(default_collate(single_data['aspect_ratio_mask'])))
+                    image_data.append(default_collate(single_data['image']))
                 else:
                     image_data.append(default_collate(single_data['image']))
                 
@@ -249,15 +281,22 @@ class DataCollatorPadToMaxLenForPPOTraining:
 
         image = torch.concat(image_data, dim=0)
 
-        image_sizes = torch.concat(image_sizes, dim=0)
+        if 'image_sizes' in data[0].keys():
+            image_sizes = torch.concat(image_sizes, dim=0)
+            batch['image_sizes'] = image_sizes
+
+        if 'aspect_ratio_ids' in data[0].keys():
+            aspect_ratio_ids = torch.concat(aspect_ratio_ids, dim=0)
+            aspect_ratio_mask = torch.concat(aspect_ratio_mask, dim=0)
+
+            batch['aspect_ratio_ids'] = aspect_ratio_ids
+            batch['aspect_ratio_mask'] = aspect_ratio_mask
 
         image_num = [f['image_num'] for f in data]
         batch['input_ids'] = input_ids
         batch['labels'] = labels
         batch['attention_mask'] = attention_mask
         batch['image'] = image
-        if 'image_sizes' in single_data.keys():
-            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         return batch
 
@@ -279,7 +318,14 @@ class DataCollatorPadToMaxLenForPrediction:
         if len(data[0]['image']) == 0:
             if 'image_sizes' in data[0].keys():
                 image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
+                image_sizes = []
                 image_sizes.append(torch.LongTensor([123, 123]))
+            elif 'aspect_ratio_ids' in data[0].keys():
+                image_data.append(torch.zeros(1, 4, 3, self.image_size['height'],self.image_size['width']))
+                aspect_ratio_ids = []
+                aspect_ratio_mask = []
+                aspect_ratio_ids.append(torch.LongTensor([[4]]))
+                aspect_ratio_mask.append(torch.LongTensor([[[0,0,0,0]]]))
             else:
                 image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width']))
             image_num = [0]
@@ -287,11 +333,17 @@ class DataCollatorPadToMaxLenForPrediction:
             image_num = []
             image_data = []
             image_sizes = []
+            aspect_ratio_ids = []
+            aspect_ratio_mask = []
             
             for single_data in data:
                 if 'image_sizes' in single_data.keys():
                     if len(single_data['image_sizes']) != 0:
                         image_sizes.append(torch.LongTensor(default_collate(single_data['image_sizes'])))
+                
+                if 'aspect_ratio_ids' in single_data.keys():
+                    aspect_ratio_ids.append(torch.LongTensor(default_collate(single_data['aspect_ratio_ids'])))
+                    aspect_ratio_mask.append(torch.LongTensor(default_collate(single_data['aspect_ratio_mask'])))
 
                 image_data.append(default_collate(single_data['image'][0]))
                     
@@ -301,13 +353,19 @@ class DataCollatorPadToMaxLenForPrediction:
         
         if 'image_sizes' in data[0].keys():
             image_sizes = torch.concat(image_sizes, dim=0)
+            batch['image_sizes'] = image_sizes
+
+        if 'aspect_ratio_ids' in data[0].keys():
+            aspect_ratio_ids = torch.concat(aspect_ratio_ids, dim=0)
+            aspect_ratio_mask = torch.concat(aspect_ratio_mask, dim=0)
+
+            batch['aspect_ratio_ids'] = aspect_ratio_ids
+            batch['aspect_ratio_mask'] = aspect_ratio_mask
 
         batch['input_ids'] = torch.LongTensor(input_ids).unsqueeze(0)
         batch['labels'] = torch.LongTensor(labels).unsqueeze(0)
         batch['attention_mask'] = torch.LongTensor(attention_mask).unsqueeze(0)
         batch['image'] = image
-        if 'image_sizes' in data[0].keys():
-            batch['image_sizes'] = image_sizes
         batch['image_num'] = image_num
         batch['id'] = sample_id
         return batch

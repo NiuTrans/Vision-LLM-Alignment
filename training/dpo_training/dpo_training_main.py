@@ -224,7 +224,8 @@ def parse_args():
         help='Specifying the checkpoint directory to be loaded.')
     parser.add_argument('--template',
                         type=str,
-                        choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava"],)
+                        choices=["default", "llama_2", "llama_3", "llama_3", 
+                                "vicuna", "llava", "llava-next", "llama-3.2-vision"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -248,7 +249,6 @@ def gather_log_probs(logits, labels, label_mask):
     return (log_probs_labels.squeeze(-1)*label_mask_new).sum(-1)
 
 def main():
-
     args = parse_args()
 
     if args.local_rank == -1:
@@ -399,11 +399,31 @@ def main():
         global_step = 0
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
-            batch = to_device(batch, device) 
-            images = batch["image"].half() 
-            input_ids = batch["input_ids"]
-            attention_mask = batch["attention_mask"]
-            labels = batch["labels"]
+            batch = to_device(batch, device)
+
+            input_ids = torch.stack(batch["input_ids"])
+            attention_mask = torch.stack(batch["attention_mask"])
+            labels = torch.stack(batch["labels"])
+            images = torch.stack(batch["image"])
+
+            if args.model_architecture == "llava_next":
+                image_sizes = batch["image_sizes"]
+                image_sizes = image_sizes.reshape(len(input_ids), 2)
+                images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
+
+            elif args.model_architecture == "llama-3.2-vision":
+                aspect_ratio_ids = batch["aspect_ratio_ids"]
+                aspect_ratio_mask = batch["aspect_ratio_mask"]
+                images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                image_sizes = None
+
+            else:
+                image_sizes = None
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
 
             if args.model_architecture == 'default':
                 outputs_logits = model(images,
@@ -419,24 +439,64 @@ def main():
                         attention_mask=attention_mask,
                         input_labels=labels,
                         image_num=batch["image_num"])[1]
-            elif args.model_architecture=="llava":
+            elif args.model_architecture in ["llava", "llava-next"]:
+                if image_sizes is not None:
+                    outputs = model(
+                        input_ids=input_ids,
+                        image_sizes = image_sizes,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        output_hidden_states=True)
+                    outputs_logits = outputs.logits_drop_image
+                    
+                    with torch.no_grad():
+                        ref_outputs = ref_model(
+                        input_ids=input_ids,
+                        image_sizes = image_sizes,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        output_hidden_states=True)
+                        ref_outputs_logits = ref_outputs.logits_drop_image
+                else:
+                    outputs = model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        output_hidden_states=True)
+                    outputs_logits = outputs.logits_drop_image
+                    
+                    with torch.no_grad():
+                        ref_outputs = ref_model(
+                        input_ids=input_ids,
+                        pixel_values = images,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        output_hidden_states=True)
+                        ref_outputs_logits = ref_outputs.logits_drop_image
+            elif args.model_architecture in ["llama-3.2-vision"]:
                 outputs = model(
                     input_ids=input_ids,
                     pixel_values = images,
+                    aspect_ratio_ids=aspect_ratio_ids,
+                    aspect_ratio_mask=aspect_ratio_mask,
                     attention_mask=attention_mask,
                     labels=labels,
                     output_hidden_states=True)
-                outputs_logits = outputs.logits_drop_image
+                outputs_logits = outputs.logits
                 
                 with torch.no_grad():
                     ref_outputs = ref_model(
                     input_ids=input_ids,
                     pixel_values = images,
+                    aspect_ratio_ids=aspect_ratio_ids,
+                    aspect_ratio_mask=aspect_ratio_mask,
                     attention_mask=attention_mask,
                     labels=labels,
                     output_hidden_states=True)
-                    ref_outputs_logits = ref_outputs.logits_drop_image
-
+                    ref_outputs_logits = ref_outputs.logits
 
             # Conducting the DPO with all the data with an image or all without image.
             logprobs = gather_log_probs(outputs_logits[:, :-1, :], input_ids[:, 1:], labels)

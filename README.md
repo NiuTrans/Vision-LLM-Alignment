@@ -4,6 +4,7 @@ For the integration of additional alignment algorithms or to report any arising 
 
 
 ## Changelog
+- [2024/09/28] 💡We support for training the [LLaMA-3.2-Vision](https://huggingface.co/collections/meta-llama/llama-32-66f448ffc8c32f949b04c8cf). You just need to set the `model_architecture` and `template` parameters to "llama-3.2-vision", and specify the LLaMA-Vision model path with `from_checkpoint`.
 - [2024/08/21] 💪We released __RoVRM:A Robust Visual Reward Model Optimized via Auxiliary Textual Preference Data__, which is trained and applied for human-alignment training based on this repository.[[Paper](https://arxiv.org/abs/2408.12109)][[Checkpoints](https://huggingface.co/wangclnlp/robust_visual_reward_model)]
 - [2024/08/19] We support for training the [LLaVA-NeXT](https://huggingface.co/collections/llava-hf/llava-next-65f75c4afac77fd37dbbe6cf) (as known as LLaVA-1.6). You just need to set the `model_architecture` parameter to "llava_next", and specify the LLaVA-NeXT model path with `from_checkpoint`.
 - [2024/07/18] We provide a large-scale vision feedback dataset. It is a combination of the following high-quality vision feedback datasets. The dataset can be found in [wangclnlp/vision-feedback-mix-binarized](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized) and [wangclnlp/vision-feedback-mix-binarized-cleaned](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized-cleaned).
@@ -20,6 +21,9 @@ pip install -r requirements.txt
 ### Models
 Vision-LLM requires both a vision encoder and a language model.
 Its architecture is depicted in the [figure](https://github.com/microsoft/DeepSpeedExamples/blob/master/applications/DeepSpeed-VisualChat/assets/model.png).
+You can also directly employ a vision LLM after SFT, such as LLaVA-1.5/-NeXT and LLaMA-3.2-Vision-Instruction, as the actor model.
+
+
 
 ### Datasets
 We have tentatively implemented all alignment training based on this LLaVA dataset format. 
@@ -66,6 +70,7 @@ bash run_predict.sh
 | LLaMA-1.5 | 7B/13B |
 | LLaMA-NeXT/-1.6-vicuna | 7B/13B |
 | LLaMA-NeXT/-1.6-mistral | 7B/13B |
+| Llama-3.2-Vision | 11B/90B |
 
 Note: Other LLMs with similar architectures are also supported.
 Additionally, custom model architectures can be incorporated by modifying `training/utils/model/build_model.py`(loading model) and `training/utils/data/DST.py`(template).

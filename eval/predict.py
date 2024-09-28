@@ -23,7 +23,7 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)) + "/training")
 
-from training.ppo_training.ppo_training_utils import sampling, sampling_llava
+from training.ppo_training.ppo_training_utils import sampling, sampling_llava, sampling_llama
 from training.utils.data import build_dataset, DataCollatorPadToMaxLenForPrediction
 from training.utils.utils import print_rank_0, to_device, set_random_seed, get_all_reduce_mean
 from training.utils.ds_utils import get_train_ds_config
@@ -198,7 +198,8 @@ def parse_args():
     parser.add_argument('--template',
                         type=str,
                         choices=
-                        ["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava", "llava_next"],)
+                        ["default", "llama_2", "llama_3", "llama_3", 
+                        "vicuna", "llava", "llava_next", "llama-3.2-vision"],)
     
     parser.add_argument(
         "--max_new_tokens",
@@ -320,11 +321,15 @@ def main():
     train_dataset = dataset
     args.batch_size = 1
 
+    if args.model_architecture == "llama-3.2-vision":
+        image_size = image_processor.size
+    else:
+        image_size = image_processor.crop_size
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=False, drop_last=False),
-        collate_fn=DataCollatorPadToMaxLenForPrediction(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLenForPrediction(args.max_seq_len, tokenizer.pad_token_id, image_size),
     )
 
     reference = json.load(open(args.data_path, "r", encoding="utf-8"))
@@ -351,6 +356,10 @@ def main():
             image_sizes = batch["image_sizes"]
             image_sizes = image_sizes.reshape(len(input_ids), 2)
             images = images.reshape(len(input_ids), -1, images.size(-3), images.size(-2), images.size(-1))
+
+        if args.model_architecture == 'llama-3.2-vision':
+            aspect_ratio_ids = batch["aspect_ratio_ids"]
+            aspect_ratio_mask = batch["aspect_ratio_mask"]
         
         if image_num[0] == 0:
             images = [None]
@@ -365,6 +374,15 @@ def main():
             sampling_ans = sampling_llava(model, 
                                     images, input_ids,
                                     image_sizes=image_sizes, 
+                                    attention_mask=attention_mask, 
+                                    pad_token_id=tokenizer.pad_token_id,
+                                    processor=tokenizer,
+                                    **generation_kwargs)
+        elif args.model_architecture in ["llama-3.2-vision"]:
+            sampling_ans = sampling_llama(model, 
+                                    images, input_ids,
+                                    aspect_ratio_ids=aspect_ratio_ids,
+                                    aspect_ratio_mask=aspect_ratio_mask,
                                     attention_mask=attention_mask, 
                                     pad_token_id=tokenizer.pad_token_id,
                                     processor=tokenizer,

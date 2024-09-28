@@ -236,7 +236,7 @@ def parse_args():
     parser.add_argument('--template',
                     type=str,
                     choices=["default", "llama_2", "llama_3", "llama_3", "vicuna", "llava",
-                            "llava_next"],)
+                            "llava_next", "llama-3.2-vision"],)
     parser.add_argument(
         '--from_checkpoint',
         type=str,
@@ -395,19 +395,24 @@ def main():
             tokenizer=tokenizer,
             template=args.template
         )
+    
+    if args.model_architecture == "llama-3.2-vision":
+        image_size = image_processor.size
+    else:
+        image_size = image_processor.crop_size
 
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=False),
-        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLenForRewardModel(args.max_seq_len, tokenizer.pad_token_id, image_size),
     )
 
     # Split weights in two groups, one with weight decay and the other not.
@@ -470,11 +475,21 @@ def main():
 
                 if args.model_architecture == "llava_next":
                     image_sizes = batch["image_sizes"]
-                    
                     image_sizes = image_sizes.reshape(len(input_ids), 2)
                     images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                    aspect_ratio_ids = None
+                    aspect_ratio_mask = None
+
+                elif args.model_architecture == "llama-3.2-vision":
+                    aspect_ratio_ids = batch["aspect_ratio_ids"]
+                    aspect_ratio_mask = batch["aspect_ratio_mask"]
+                    images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                    image_sizes = None
+
                 else:
                     image_sizes = None
+                    aspect_ratio_ids = None
+                    aspect_ratio_mask = None
 
                 labels_tmp = input_ids.clone()
                 attention_mask_tmp = attention_mask.clone()
@@ -484,10 +499,13 @@ def main():
                     images ,
                     input_ids,
                     image_sizes=image_sizes,
+                    aspect_ratio_ids=aspect_ratio_ids,
+                    aspect_ratio_mask=aspect_ratio_mask,
                     attention_mask=attention_mask_tmp,
                     input_labels=labels_tmp,
                     image_num=batch["image_num"],
                 )
+
                 if candidate_assigned == False:
                     candidate_size = int(len(reward_scores) / batch_size)
                     candidate_assigned = True
@@ -539,11 +557,22 @@ def main():
 
             if args.model_architecture == "llava_next":
                 image_sizes = batch["image_sizes"]
-                
                 image_sizes = image_sizes.reshape(len(input_ids), 2)
                 images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
+
+            elif args.model_architecture == "llama-3.2-vision":
+                aspect_ratio_ids = batch["aspect_ratio_ids"]
+                aspect_ratio_mask = batch["aspect_ratio_mask"]
+                images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                image_sizes = None
+
             else:
                 image_sizes = None
+                aspect_ratio_ids = None
+                aspect_ratio_mask = None
             
             labels_tmp = input_ids.clone()
             attention_mask_tmp = attention_mask.clone()
@@ -553,6 +582,8 @@ def main():
                 images,
                 input_ids,
                 image_sizes=image_sizes,
+                aspect_ratio_ids=aspect_ratio_ids,
+                aspect_ratio_mask=aspect_ratio_mask,
                 attention_mask=attention_mask_tmp,
                 input_labels=labels_tmp,
                 image_num=batch["image_num"],

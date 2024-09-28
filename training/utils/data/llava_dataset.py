@@ -161,6 +161,12 @@ class LlavaComparsionDataset(VQADataset):
                 image, image_sizes = self.process_image(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter)
+            elif self.template == 'llama-3.2-vision':
+                # aspect_items: ['aspect_ratio_ids', 'aspect_ratio_mask', 'num_tiles']
+                # example: 'aspect_ratio_ids': array([[4]]), 'aspect_ratio_mask': array([[[1, 1, 1, 1]]]), 'num_tiles': [[4]]
+                image, aspect_items = self.process_image(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)
             else:
                 image = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
@@ -175,7 +181,6 @@ class LlavaComparsionDataset(VQADataset):
             ranked_candidates = text['answer']
             query_id = [ann["id"]]
 
-            
             if len(ranked_candidates) > len(ranked_candidates):
                 pass
             else:
@@ -187,6 +192,9 @@ class LlavaComparsionDataset(VQADataset):
                     res.update(image=image)
                     if self.template == 'llava_next':
                         res.update(image_sizes=image_sizes)
+                    elif self.template == 'llama-3.2-vision':
+                        res.update(aspect_ratio_ids=aspect_items['aspect_ratio_ids'])
+                        res.update(aspect_ratio_mask=aspect_items['aspect_ratio_mask'])
                     res.update(text_tmp)
                     res.update(query_id=query_id)
                     res_list.append(res)
@@ -322,8 +330,6 @@ class LlavaRMPaddingDataset(VQADataset):
         
         return dict(instruction=instruction, answer=answer)
 
-
-
 class LlavaRewardMseDataset(VQADataset):
     def __init__(self, data_path, data_debug_path, per_sample_image, tokenizer, vis_processor, vis_root=None, **kwargs):
         assert os.path.isdir(vis_root), f"LlavaDataset image directory {vis_root} not found, you need to download 2017 Train images from https://cocodataset.org/#download"
@@ -442,6 +448,12 @@ class LlavaPPODataset(VQADataset):
                     image, image_sizes = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
                                         data_debug_counter=self.data_debug_counter)
+                elif self.template == 'llama-3.2-vision':
+                    # aspect_items: ['aspect_ratio_ids', 'aspect_ratio_mask', 'num_tiles']
+                    # example: 'aspect_ratio_ids': array([[4]]), 'aspect_ratio_mask': array([[[1, 1, 1, 1]]]), 'num_tiles': [[4]]
+                    image, aspect_items = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
                 else:
                     image = self.process_image(ann,
                                             data_debug_path=self.data_debug_path,
@@ -459,8 +471,13 @@ class LlavaPPODataset(VQADataset):
 
             self.data_debug_counter += 1
             res = self.tokenize(text)
+            
             if self.template == 'llava_next':
                 res.update(image_sizes=image_sizes)
+            elif self.template == 'llama-3.2-vision':
+                res.update(aspect_ratio_ids=aspect_items['aspect_ratio_ids'])
+                res.update(aspect_ratio_mask=aspect_items['aspect_ratio_mask'])
+            
             res.update(image=image)
             res.update(text)
             res_list.append(res)
@@ -530,6 +547,12 @@ class LlavaPredictDataset(VQADataset):
                 image, image_sizes = self.process_image(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter)
+            elif self.template == 'llama-3.2-vision':
+                # aspect_items: ['aspect_ratio_ids', 'aspect_ratio_mask', 'num_tiles']
+                # example: 'aspect_ratio_ids': array([[4]]), 'aspect_ratio_mask': array([[[1, 1, 1, 1]]]), 'num_tiles': [[4]]
+                image, aspect_items = self.process_image(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)
             else:
                 image = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
@@ -543,9 +566,14 @@ class LlavaPredictDataset(VQADataset):
                                     with_image=with_image)
      
             self.data_debug_counter += 1
+
             res = self.tokenize(text)
             if self.template == 'llava_next':
                 res.update(image_sizes=image_sizes)
+            elif self.template == 'llama-3.2-vision':
+                res.update(aspect_ratio_ids=aspect_items['aspect_ratio_ids'])
+                res.update(aspect_ratio_mask=aspect_items['aspect_ratio_mask'])
+            
             res.update(image=image)
             res.update(text)
             id_dict = {
@@ -566,12 +594,16 @@ class LlavaPredictDataset(VQADataset):
             original_output["attention_mask"] = original_output["attention_mask"] + res["attention_mask"]
             original_output["labels"] = original_output["labels"] + res["labels"]
             original_output['id'] = original_output['id'] + [res['id']]
-            if DST.DEFAULT_IMAGE_TOKEN in text["instruction"]:
+            if (DST.DEFAULT_IMAGE_TOKEN in text["instruction"]) or ("<|image|>" in text["instruction"]):
                 image_number += 1
                 original_output["image"] = original_output["image"] + [res["image"]]
 
                 if "image_sizes" in res.keys():
                     original_output.update(image_sizes=[res["image_sizes"]])
+                if "aspect_ratio_ids" in res.keys():
+                    original_output.update(aspect_ratio_ids=[res["aspect_ratio_ids"]])
+                if "aspect_ratio_mask" in res.keys():
+                    original_output.update(aspect_ratio_mask=[res["aspect_ratio_mask"]])
 
         if image_number == 0:
             print("Warning: Here is input without image")

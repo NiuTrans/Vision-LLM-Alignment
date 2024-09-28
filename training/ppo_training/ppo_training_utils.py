@@ -77,10 +77,10 @@ def sampling_llava(actor_model,
  
     actor_model.eval()
     for index in range(batch_size):
-        try:
+        if img.size()[0] == batch_size:
             sub_img = img[index].unsqueeze(0)
-        except:
-            sub_img = [img[index]]   # reused by the prediction, and there is a situation where the image is None.
+        else:
+            sub_img = img.unsqueeze(0)   # reused by the prediction, and there is a situation where the image is None.
         
         sub_attention_mask = attention_mask[index]
         sub_lang = lang[index][sum(sub_attention_mask==pad_token_id):].unsqueeze(0)
@@ -93,8 +93,62 @@ def sampling_llava(actor_model,
                 res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, 
                                            image_sizes=sub_image_sizes, max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
             else:
-                res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, 
-                                           max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
+                res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
+        res_text = processor.decode(res, skip_special_tokens=True)       
+        all_res.append([res, res_text])
+    actor_model.train()
+    return all_res
+
+def sampling_llama(actor_model,
+            img, lang,
+            aspect_ratio_ids,
+            aspect_ratio_mask,
+            attention_mask=None,
+            pad_token_id=0,
+            topk=50,
+            topp=0.95,
+            do_sample=True,
+            max_new_tokens=384,
+            num_return_sequences=1,
+            temperature=0.75,
+            processor=None):
+    
+    generation_kwargs={
+        "top_k": topk,
+        "top_p": topp,
+        "do_sample": do_sample,
+        "max_new_tokens": max_new_tokens,
+        "num_return_sequences": num_return_sequences,
+        "temperature": temperature
+    }
+    max_new_tokens = generation_kwargs["max_new_tokens"]
+    generation_kwargs.pop("max_new_tokens")
+
+    batch_size = lang.size()[0]
+
+    all_res = []
+ 
+    actor_model.eval()
+    for index in range(batch_size):
+        if img.size()[0] == batch_size:
+            sub_img = img[index].unsqueeze(0)
+        else:
+            sub_img = img.unsqueeze(0)   # reused by the prediction, and there is a situation where the image is None.
+        
+        sub_attention_mask = attention_mask[index]
+        sub_lang = lang[index][sum(sub_attention_mask==pad_token_id):].unsqueeze(0)
+
+        sub_aspect_ratio_ids = aspect_ratio_ids[index]
+        sub_aspect_ratio_mask = aspect_ratio_mask[index]
+        
+        generation_kwargs["aspect_ratio_ids"] = sub_aspect_ratio_ids
+        generation_kwargs["aspect_ratio_mask"] = sub_aspect_ratio_mask
+
+        if sub_img == [None]:
+            res = actor_model.generate(input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][lang.shape[1]:]
+        else:
+            res = actor_model.generate(pixel_values=sub_img, input_ids=sub_lang, max_new_tokens=max_new_tokens, **generation_kwargs)[0][sub_lang.shape[1]:]
+
         res_text = processor.decode(res, skip_special_tokens=True)       
         all_res.append([res, res_text])
     actor_model.train()
