@@ -234,7 +234,8 @@ def parse_args():
                         help='Only optimize the LoRA parameters.')
     parser.add_argument('--template',
                         type=str,
-                        choices=['default', 'llama_2', 'llama_3', 'llama_3', 'vicuna'],)
+                        choices=['default', 'llama_2', 'llama_3', 'llama_3', 'vicuna', 
+                        'llama-3.2-vision'],)
     parser.add_argument(
         '--eval_step',
         type=int,
@@ -333,18 +334,23 @@ def main():
     dataset = shuffle_dataset(dataset, np_rng)
     train_dataset, eval_dataset = split_dataset(dataset, args.data_train_split_ratio)
 
+    if args.model_architecture == "llama-3.2-vision":
+        image_size = image_processor.size
+    else:
+        image_size = image_processor.crop_size
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.per_device_train_batch_size,
         sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=True),
-        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_size),
     )
 
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=args.per_device_eval_batch_size,
         sampler=DistributedSampler(eval_dataset, shuffle=False),
-        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_processor.crop_size),
+        collate_fn=DataCollatorPadToMaxLen(args.max_seq_len, tokenizer.pad_token_id, image_size),
     )
 
     # Split weights in two groups, one with weight decay and the other not.
@@ -395,22 +401,41 @@ def main():
         for step, batch in enumerate(tqdm(eval_dataloader)):
             with torch.no_grad():
                 batch = to_device(batch, device)
+                images = batch["image"].half() 
+                input_ids = batch["input_ids"]
+                attention_mask = batch["attention_mask"]
+                labels = batch["labels"]
+
                 if args.model_architecture=="default":
                     loss = model(
-                        batch["image"].half(),
-                        batch["input_ids"],
-                        attention_mask=batch["attention_mask"],
-                        input_labels=batch["labels"],
+                        images,
+                        input_ids,
+                        attention_mask=attention_mask,
+                        input_labels=labels,
                         image_num=batch["image_num"],
                     )[0]
                 elif args.model_architecture=="llava":
                     loss = model(
-                        input_ids=batch["input_ids"],
-                        pixel_values=batch["image"].half(),
-                        attention_mask=batch["attention_mask"],
-                        labels=batch["labels"],
+                        input_ids=input_ids,
+                        pixel_values=images,
+                        attention_mask=attention_mask,
+                        labels=labels,
                         return_dict=False
                     )[0]
+                elif args.model_architecture=="llama-3.2-vision":
+                    aspect_ratio_ids = batch["aspect_ratio_ids"]
+                    aspect_ratio_mask = batch["aspect_ratio_mask"]
+                    images = images.reshape(len(input_ids), -1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                    
+                    loss = model(
+                        input_ids=input_ids,
+                        pixel_values=images,
+                        aspect_ratio_mask=aspect_ratio_mask,
+                        aspect_ratio_ids=aspect_ratio_ids,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        return_dict=False)[0] 
+
             acc_loss += loss
         model.train()
         acc_loss = get_all_reduce_mean(acc_loss).item()
@@ -433,6 +458,7 @@ def main():
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             labels = batch["labels"]
+
             if args.model_architecture=="default":
                 loss = model(
                     images,
@@ -450,6 +476,20 @@ def main():
                     labels=labels,
                     return_dict=False
                 )[0]
+            elif args.model_architecture=="llama-3.2-vision":
+                aspect_ratio_ids = batch["aspect_ratio_ids"]
+                aspect_ratio_mask = batch["aspect_ratio_mask"]
+                images = images.reshape(len(input_ids), -1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                
+                loss = model(
+                    input_ids=input_ids,
+                    pixel_values=images,
+                    aspect_ratio_mask=aspect_ratio_mask,
+                    aspect_ratio_ids=aspect_ratio_ids,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    return_dict=False)[0]
+
             model.backward(loss)
             model.step()
             

@@ -35,7 +35,6 @@ class LlavaDataset(VQADataset):
             if conv_idx == 0: 
                 # the first turn, image = True
                 with_image_flag = True
-                # question = question.replace("<image>","").replace("\n","")
                 question = question.replace("<image>", "").strip("\n")
 
             end_of_token = ""
@@ -61,29 +60,64 @@ class LlavaDataset(VQADataset):
     def __getitem__(self, index):
         
         res_list_all = []
+        image_number = 1
         for ann in self.annotation[index]:
             if 'image' in ann.keys():
                 if ann['image'] is not None:
-                    image = self.process_image(
-                        ann,
-                        data_debug_path=self.data_debug_path,
-                        data_debug_counter=self.data_debug_counter
-                    )
+                    if ("," in ann['image']) and (self.template == 'llama-3.2-vision'):  # support for sft with multi-images on the LLaMA-3.2-vision model
+                        all_image_paths = ann['image'].split(",")
+                        all_images = []
+                        all_aspect_ratio_ids = []
+                        all_aspect_ratio_mask = []
+
+                        for image_path in all_image_paths:
+                            ann['image'] = image_path
+                            image, aspect_items = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
+                            all_images.append(torch.Tensor(image))
+                            all_aspect_ratio_ids.append(torch.LongTensor(aspect_items['aspect_ratio_ids']))
+                            all_aspect_ratio_mask.append(torch.LongTensor(aspect_items['aspect_ratio_mask']))
+
+                        # reconstruct this sample
+                        image = torch.cat(all_images, dim=0)
+                        aspect_ratio_ids = torch.cat(all_aspect_ratio_ids, dim=1)
+                        aspect_ratio_mask = torch.cat(all_aspect_ratio_mask, dim=1)
+                        multi_image_tag = len(all_image_paths)
+                            
+                    elif self.template == 'llama-3.2-vision':
+                        image, aspect_items = self.process_image(ann,
+                                        data_debug_path=self.data_debug_path,
+                                        data_debug_counter=self.data_debug_counter)
+                        aspect_ratio_ids = aspect_items['aspect_ratio_ids']
+                        aspect_ratio_mask = aspect_items['aspect_ratio_mask']
+
+                    else:
+                        image = self.process_image(
+                                    ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)  
                 else:
                     image = None
             else:
                 image = None
+                
             text_list = self.process_text(
                 ann,
                 data_debug_path=self.data_debug_path,
                 data_debug_counter=self.data_debug_counter,
                 first_message=True
             )
+
+            if image_number > 1: # only for llama-3.2-vision
+                text_list[0]["instruction"] = text_list[0]["instruction"].replace("<|image|>", '\n'.join(["<|image|>"]*image_number))
+
             self.data_debug_counter += 1
             res_list = []
             for text in text_list:
                 single_res = self.tokenize(text)
                 res_list.append(single_res)
+
             input_ids = []
             attention_mask = []
             labels = []
@@ -94,6 +128,7 @@ class LlavaDataset(VQADataset):
                 input_ids.extend(res["input_ids"])
                 attention_mask.extend(res["attention_mask"])
                 labels.extend(res["labels"])
+            
             else:
                 # multi-turn
                 for idx in range(length_of_res):
@@ -127,16 +162,22 @@ class LlavaDataset(VQADataset):
                     input_ids.extend(res["input_ids"])
                     attention_mask.extend(res["attention_mask"])
                     labels.extend(res["labels"])
+
             res = dict(
                 input_ids = input_ids,
                 attention_mask = attention_mask,
                 labels = labels,
                 image=image
             )
-            res_list_all.append(res)
-        output = self.merge_all_images(res_list_all, text)
-        return output
 
+            if self.template == "llama-3.2-vision":
+                res.update(aspect_ratio_ids=aspect_ratio_ids)
+                res.update(aspect_ratio_mask=aspect_ratio_mask)
+
+            res_list_all.append(res)
+
+        output = self.merge_all_images(res_list_all, text_list[0])
+        return output
 
 class LlavaComparsionDataset(VQADataset):
     def __init__(self, data_path, data_debug_path, per_sample_image, tokenizer, vis_processor, vis_root=None, max_ranked_candidate_num=4, **kwargs):
