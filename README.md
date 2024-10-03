@@ -5,7 +5,7 @@ For the integration of additional alignment algorithms or to report any arising 
 
 ## Changelog
 - [2024/10/03] We support tuning for multi-image instructions on the [LLaMA-3.2-Vision](https://huggingface.co/collections/meta-llama/llama-32-66f448ffc8c32f949b04c8cf). 
-See data [examples](https://github.com/NiuTrans/Vision-LLM-Alignment/blob/master/data/sft_samples_multi_image.json) for usage.
+See data [examples](data/sft_samples_multi_image.json) for usage.
 
 - [2024/09/28] 💡We support for training the [LLaMA-3.2-Vision](https://huggingface.co/collections/meta-llama/llama-32-66f448ffc8c32f949b04c8cf). You just need to set the `model_architecture` and `template` parameters to "llama-3.2-vision", and specify the LLaMA-Vision model path with `from_checkpoint`.
 
@@ -23,7 +23,7 @@ See data [examples](https://github.com/NiuTrans/Vision-LLM-Alignment/blob/master
 </details>
 
 ## Benchmark
-During the development of this system, we conducted a series of benchmark tests to evaluate and validate the system's performance. Specifically, we selected RLAIF-V as the preferred dataset and LLaVA-Instruct-150K as the input instruction for the RLHF training session. In the model evaluation phase, we utilized several standard benchmarks, including MMHalBench, Object HalBench, AMBER, LLaVA-Benchmark, and MMinstruct, to conduct a more comprehensive assessment of the differences in trustworthiness and helpfulness of the vision-based LLM before and after alignment.
+During the development of this system, we conducted a series of benchmark tests to evaluate and validate the system's performance. Specifically, we selected RLAIF-V as the preference dataset and LLaVA-Instruct-150K as the input instruction for the RLHF training session. In the model evaluation phase, we utilized several standard benchmarks, including MMHalBench, Object HalBench, AMBER, LLaVA-Benchmark, and MMinstruct, to conduct a more comprehensive assessment of the differences in trustworthiness and helpfulness of the vision-based LLM before and after alignment.
 
 For training the reward model, we used the LLaVA-1.5-7B model. We performed Best-of-n sampling and RLHF (Reinforcement Learning from Human Feedback) alignment training on two models: LLaVA-1.5-7B and LLaVA-1.5-13B, respectively. The benchmarking results of the system are detailed in the figure below.
 
@@ -61,7 +61,7 @@ You can also directly employ a vision LLM after SFT, such as LLaVA-1.5/-NeXT and
 
 ### Datasets
 We have tentatively implemented all alignment training based on this LLaVA dataset format. 
-Some samples can be found in the [data folder](https://github.com/NiuTrans/Vision-LLM-Alignment/blob/master/data).
+Some samples can be found in the [data folder](data/).
 
 ## Training Models
 ### Supervised Fine-tuning (SFT)
