@@ -98,19 +98,83 @@ class DataCollatorPadToMaxLen:
         labels = pad_sequence([default_collate(f['labels']) for f in data],
                                    padding_value=DST.DEFAULT_LABEL_PADDING_NUM,
                                    batch_first=True)
+
         attention_mask = pad_sequence([default_collate(f['attention_mask']) for f in data],
                                         padding_value=0,
                                         batch_first=True)
         image_num = []
         image_data = []
+        image_sizes = []
+        aspect_ratio_ids = []
+        aspect_ratio_mask = []
+
+        # check for the presence of multiple images?
+        multi_tag = False
+        max_image_number = 1
+
         for single_data in data:
-            if single_data['image'][0] is None:
-                image_data.append(torch.zeros(1,3,self.image_size['height'],self.image_size['width'])) 
-                image_num.append(1)
+            if single_data['image'] is None:
+                if 'aspect_ratio_ids' in single_data.keys():
+                    image_data.append(torch.zeros(1, 1, 4, 3, self.image_size['height'],self.image_size['width']))
+                    aspect_ratio_ids.append(torch.LongTensor([[4]]))
+                    aspect_ratio_mask.append(torch.LongTensor([[[1,0,0,0]]]))
+                    image_num.append(1)
+                else:
+                    image_data.append(torch.zeros(1, 3, self.image_size['height'],self.image_size['width'])) 
+                    image_num.append(1)
             else:
-                image_data.append(default_collate(single_data['image']))
-                image_num.append(single_data['image_num'])
-        image = torch.concat(image_data,dim=0).reshape((-1,)+image_data[0].shape[-3:])
+                if 'aspect_ratio_ids' in single_data.keys():
+                    image_data.append(torch.Tensor(default_collate(single_data['image'])))    # {'image': [image_array]]}
+
+                    try:
+                        aspect_ratio_ids.append(torch.LongTensor(default_collate(single_data['aspect_ratio_ids'])))
+                        aspect_ratio_mask.append(torch.LongTensor(default_collate(single_data['aspect_ratio_mask'])))
+                    except:
+                        aspect_ratio_ids.append(default_collate(single_data['aspect_ratio_ids']))
+                        aspect_ratio_mask.append(default_collate(single_data['aspect_ratio_mask']))
+                    
+                    image_num.append(single_data['image_num'])
+                    # check multiple images?
+                    
+                    if image_data[-1].size(1) > max_image_number:
+                        max_image_number = image_data[-1].size(1)
+                        multi_tag = True
+                else:
+                    image_data.append(default_collate(single_data['image'][0]))
+                    image_num.append(single_data['image_num'])
+        
+        if multi_tag:  #for llama-3.2-vision
+            for index in range(len(image_data)):
+                if image_data[index].size(1) != max_image_number:
+                    new_image = []
+                    new_aspect_ratio_ids = []
+                    new_aspect_ratio_mask = []
+
+                    new_image.append(image_data[index])
+                    new_aspect_ratio_ids.append(aspect_ratio_ids[index])
+                    new_aspect_ratio_mask.append(aspect_ratio_mask[index])
+
+                    for i in range(max_image_number-image_data[index].size(1)):
+                        new_image.append(torch.zeros(1, 1, 4, 3, self.image_size['height'],self.image_size['width']))
+                        new_aspect_ratio_ids.append(torch.LongTensor([[[4]]]))
+                        new_aspect_ratio_mask.append(torch.LongTensor([[[[1,0,0,0]]]]))
+
+                    new_image = torch.cat(new_image, dim=1)
+                    new_aspect_ratio_ids = torch.cat(new_aspect_ratio_ids, dim=2)
+                    new_aspect_ratio_mask = torch.cat(new_aspect_ratio_mask, dim=2)
+
+                    image_data[index] =  new_image
+                    aspect_ratio_ids[index] = new_aspect_ratio_ids
+                    aspect_ratio_mask[index] = new_aspect_ratio_mask
+        
+        if 'aspect_ratio_ids' in data[0].keys():
+            aspect_ratio_ids = torch.cat(aspect_ratio_ids, dim=1).squeeze(0)
+            aspect_ratio_mask = torch.cat(aspect_ratio_mask, dim=1).squeeze(0)
+            
+            batch['aspect_ratio_ids'] = aspect_ratio_ids
+            batch['aspect_ratio_mask'] = aspect_ratio_mask
+
+        image = torch.cat(image_data, dim=0)
 
         batch['input_ids'] = input_ids
         batch['labels'] = labels

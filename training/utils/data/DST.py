@@ -102,7 +102,7 @@ LLAVA_TEMPLATE = {
 
 LLAMA_3_2_TEMPLATE = {
     "description": "Template for the LLaMA 3.2 model.",
-    "prompt_qa_with_image": f'''{LLAMA_3_2_HUMAN_QUESTION_PRETOKEN}<|image|>\n{DEFAULT_QUESTION_TOKEN}{LLAMA_3_2_ASSISTANT_TOKEN}''',
+    "prompt_qa_with_image": f'''{LLAMA_3_2_HUMAN_QUESTION_PRETOKEN}<|image|>{DEFAULT_QUESTION_TOKEN}{LLAMA_3_2_ASSISTANT_TOKEN}''',
     "prompt_qa_without_image": f'''{LLAMA_3_2_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAMA_3_2_ASSISTANT_TOKEN}''',
 }
 

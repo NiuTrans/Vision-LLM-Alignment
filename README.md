@@ -4,12 +4,46 @@ For the integration of additional alignment algorithms or to report any arising 
 
 
 ## Changelog
+- [2024/10/03] We support tuning for multi-image instructions on the [LLaMA-3.2-Vision](https://huggingface.co/collections/meta-llama/llama-32-66f448ffc8c32f949b04c8cf). 
+See data [examples](data/sft_samples_multi_image.json) for usage.
+
 - [2024/09/28] 💡We support for training the [LLaMA-3.2-Vision](https://huggingface.co/collections/meta-llama/llama-32-66f448ffc8c32f949b04c8cf). You just need to set the `model_architecture` and `template` parameters to "llama-3.2-vision", and specify the LLaMA-Vision model path with `from_checkpoint`.
+
 - [2024/08/21] 💪We released __RoVRM:A Robust Visual Reward Model Optimized via Auxiliary Textual Preference Data__, which is trained and applied for human-alignment training based on this repository.[[Paper](https://arxiv.org/abs/2408.12109)][[Checkpoints](https://huggingface.co/wangclnlp/robust_visual_reward_model)]
+
 - [2024/08/19] We support for training the [LLaVA-NeXT](https://huggingface.co/collections/llava-hf/llava-next-65f75c4afac77fd37dbbe6cf) (as known as LLaVA-1.6). You just need to set the `model_architecture` parameter to "llava_next", and specify the LLaVA-NeXT model path with `from_checkpoint`.
+
+<details><summary>Full Changelog</summary>
+
 - [2024/07/18] We provide a large-scale vision feedback dataset. It is a combination of the following high-quality vision feedback datasets. The dataset can be found in [wangclnlp/vision-feedback-mix-binarized](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized) and [wangclnlp/vision-feedback-mix-binarized-cleaned](https://huggingface.co/datasets/wangclnlp/vision-feedback-mix-binarized-cleaned).
+
 - [2024/07/10] We support the direct loading of a LLaVA model in all training stages, including SFT training, RM training, and PPO/DPO training.
+
 - [2024/07/07] We support the direct loading of a LLaVA model during the SFT training phase. You just need to set the `model_architecture` parameter to "llava" and specify the LLaVA model path with `from_checkpoint`. Support for this functionality during the DPO, RM training, and PPO junction phases will be introduced soon.
+</details>
+
+## Benchmark
+During the development of this system, we conducted a series of benchmark tests to evaluate and validate the system's performance. Specifically, we selected RLAIF-V as the preference dataset and LLaVA-Instruct-150K as the input instruction for the RLHF training session. In the model evaluation phase, we utilized several standard benchmarks, including MMHalBench, Object HalBench, AMBER, LLaVA-Benchmark, and MMinstruct, to conduct a more comprehensive assessment of the differences in trustworthiness and helpfulness of the vision-based LLM before and after alignment.
+
+For training the reward model, we used the LLaVA-1.5-7B model. We performed Best-of-n sampling and RLHF (Reinforcement Learning from Human Feedback) alignment training on two models: LLaVA-1.5-7B and LLaVA-1.5-13B, respectively. The benchmarking results of the system are detailed in the figure below.
+
+![bos_1](figure/bos_1.png)
+
+<details><summary>Full Results</summary>
+
+![bos_2](figure/bos_2.png)
+
+![rl_1](figure/rl_1.png)
+
+![rl_2](figure/rl_2.png)
+
+In addition, we conducted DPO training for this system, specifically targeting the LLaVA-1.5-7B and LLaVA-1.5-13B models. 
+The results are detailed in the following figure.
+
+![dpo_2](figure/dpo.png)
+
+</details>
+
 
 ## Installation
 You can use anaconda/miniconda to install packages needed for this project.
@@ -27,7 +61,7 @@ You can also directly employ a vision LLM after SFT, such as LLaVA-1.5/-NeXT and
 
 ### Datasets
 We have tentatively implemented all alignment training based on this LLaVA dataset format. 
-Some samples can be found in the [data folder](https://github.com/wangclnlp/Vision-LLM-Alignment/tree/master/data).
+Some samples can be found in the [data folder](data/).
 
 ## Training Models
 ### Supervised Fine-tuning (SFT)

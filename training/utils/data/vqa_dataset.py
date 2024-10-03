@@ -158,9 +158,11 @@ class VQADataset(Dataset):
         # ignore instruction_token
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
-                text["instruction"], return_tensors=None, padding="do_not_pad", truncation=True, max_length=512
-            )
-            labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]) :]
+                text["instruction"], return_tensors=None, padding="do_not_pad")
+            if instruction_token["input_ids"][-1] == self.tokenizer.eos_token_id:
+                labels = [DST.DEFAULT_LABEL_PADDING_NUM] * (len(instruction_token["input_ids"])-1) + labels[len(instruction_token["input_ids"])-1:]
+            else:
+                labels = [DST.DEFAULT_LABEL_PADDING_NUM] * len(instruction_token["input_ids"]) + labels[len(instruction_token["input_ids"]):]
 
         res.update(labels=labels)
         return res
@@ -206,6 +208,7 @@ class VQADataset(Dataset):
 
         if image_number == 0:
             print("Warning: Here is input without image")
+            
         original_output["image_num"] = image_number
         return original_output
 
