@@ -1,100 +1,1311 @@
 [
-  {
-    "id": "000000442786",
-    "image": "000000442786.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "What do you see happening in this image?\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The scene depicts a lively plaza area with several people walking and enjoying their time. A man is standing in the plaza with his legs crossed, holding a kite in his hand. The kite has multiple sections attached to it, spread out in various directions as if ready for flight.\n\nNumerous people are scattered throughout the plaza, walking and interacting with others. Some of these individuals are carrying handbags, and others have backpacks. The image captures the casual, social atmosphere of a bustling plaza on a nice day."
-      }
-    ]
-  },
-  {
-    "id": "000000539056",
-    "image": "000000539056.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "What do you think is going on in this snapshot?\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The image displays a tidy home office desk setting with a laptop placed in the center. On the desk, there is a cordless keyboard in front of the laptop and a wireless mouse situated slightly to the right of it. A cell phone can be seen on the left side of the desk, close to the laptop.\n\nNear the top left corner, there is a coke glass adding a personal touch to the workspace. A collection of books is scattered around the scene in various positions and stacks, possibly serving as reference material or leisure reading for the desk's occupant."
-      }
-    ]
-  },
-  {
-    "id": "000000131697",
-    "image": "000000131697.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "Can you elaborate on the elements of the picture provided?\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The image depicts a classroom full of children working together on laptops. There are several kids in the room, with some of them sharing a laptop in pairs. The students are focused on their tasks with laptops placed on desks or tables.\n\nAside from the laptops, there are multiple chairs in the room, accommodating the students as they work. Other objects in the classroom include a bottle, a cell phone, a book, and a keyboard. Some children can also be seen using additional electronic devices such as tablets or cell phones. The overall atmosphere indicates a modern, technology-filled learning environment."
-      }
-    ]
-  },
-  {
-    "id": "000000281721",
-    "image": "000000281721.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "Describe the following image.\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The image presents a bustling city street with cars driving down the road and pedestrians walking along the sidewalks. Multiple vehicles are passing through a green light at the intersection, traveling in both directions. Some cars are closer to the camera, while others can be seen further down the street.\n\nThere are a couple of pedestrians visible near the left side of the image, possibly navigating their way through the city. Various traffic lights are positioned throughout the scene, ensuring a safe flow of traffic for both vehicles and pedestrians alike. The atmosphere suggests a busy and lively city environment."
-      }
-    ]
-  },
-  {
-    "id": "000000314298",
-    "image": "000000314298.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "What do you think is going on in this snapshot?\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The image shows a woman with glasses sitting at a dining table, biting into a delicious donut with a smile on her face. Another man is sitting next to her, celebrating or enjoying the moment. They are surrounded by several chairs and cups placed on the table.\n\nIn the background, there's another dining table with a few more cups on it as well as another person who appears to be engaged in a separate activity. The scene is lively, capturing a pleasant social gathering with people enjoying food and each other's company."
-      }
-    ]
-  },
-  {
-    "id": "000000543263",
-    "image": "000000543263.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "What's happening in the scene?\n<image>"
-      },
-      {
-        "from": "gpt",
-        "value": "The image captures a scene with several people in the vicinity of uniquely designed benches. One of the benches, which is the focal point of the image, is shaped like a butterfly. A woman in a white shirt is sitting on this butterfly-shaped bench with a handbag placed beside her. \n\nSeveral other people can be spotted around the area, including a lady with glasses and a backpack walking behind the woman sitting on the bench. One more bench is visible in the distance, and there seem to be a few people sitting or standing by the other benches as well. Overall, it appears to be a casual outdoor setting where people are taking a break, engaging in conversations or passing by."
-      }
-    ]
-  },
-  {
-    "id": "000000267779",
-    "image": "000000267779.jpg",
-    "conversations": [
-      {
-        "from": "human",
-        "value": "<image>\nAnalyze the image in a comprehensive and detailed manner."
-      },
-      {
-        "from": "gpt",
-        "value": "The image shows a man and a woman standing next to each other in a living room, both holding white Wii remotes and playing a video game together. They seem to be enjoying themselves, as they pose and smile for the picture. \n\nIn the background, there are two couches located on opposite sides of the room, as well as three potted plants positioned at various spots. One plant is placed close to the left couch, and the other two are placed near the right couch. The living room setup offers a cozy and inviting atmosphere for the two friends to spend quality time playing video games."
-      }
-    ]
-  }
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033472.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033470.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg,coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000033471",
+        "image": "coco/train2017/000000033471.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            {
+                "from": "human",
+                "value": "What feature can be seen on the back of the bus?"
+            },
+            {
+                "from": "gpt",
+                "value": "The back of the bus features an advertisement."
+            },
+            {
+                "from": "human",
+                "value": "Is the bus driving down the street or pulled off to the side?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus is driving down the street, which is crowded with people and other vehicles."
+            }
+        ]
+    },
+    {
+        "id": "000000052846",
+        "image": "coco/train2017/000000052846.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "Where is the cat positioned in the image?\n<image>"
+            },
+            {
+                "from": "gpt",
+                "value": "The cat is positioned on top of the back of the couch in the living room."
+            },
+            {
+                "from": "human",
+                "value": "What is the cat doing in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The cat is coming out from some curtains onto the couch and is sitting or standing on top of it."
+            },
+            {
+                "from": "human",
+                "value": "What is the color of the curtains near the cat?"
+            },
+            {
+                "from": "gpt",
+                "value": "The color of the curtains near the cat is red."
+            },
+            {
+                "from": "human",
+                "value": "Besides the cat, what else can be seen on the couch?"
+            },
+            {
+                "from": "gpt",
+                "value": "There are lots of pillows on the couch besides the cat."
+            },
+            {
+                "from": "human",
+                "value": "What kind of room does the couch appear to be in?"
+            },
+            {
+                "from": "gpt",
+                "value": "The couch appears to be in a living room setting."
+            }
+        ]
+    },
+    {
+        "id": "000000334872",
+        "image": "coco/train2017/000000334872.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nAre the people in the image skiing downhill or cross-country skiing?"
+            },
+            {
+                "from": "gpt",
+                "value": "The people in the image are cross-country skiing in the woods, as they are skiing on a trail rather than a steep slope."
+            },
+            {
+                "from": "human",
+                "value": "How many people are in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "There are two people in the image, both on skis in the snow."
+            },
+            {
+                "from": "human",
+                "value": "What kind of environment are they skiing in?"
+            },
+            {
+                "from": "gpt",
+                "value": "They are skiing in a wooded environment, following a trail through the trees while surrounded by snow."
+            },
+            {
+                "from": "human",
+                "value": "Do the skiers have any additional gear with them besides their skis and poles?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, the two male skiers are carrying backpacks while they ski through the woods. The backpacks might contain essentials for their skiing adventure, such as food, water, extra clothing, or safety equipment."
+            }
+        ]
+    },
+    {
+        "id": "000000319154",
+        "image": "coco/train2017/000000319154.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat color is the dog in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dog in the image is brown."
+            },
+            {
+                "from": "human",
+                "value": "What type of collar does the dog have?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dog has a red collar."
+            },
+            {
+                "from": "human",
+                "value": "What is the dog's position behind the window?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dog is sitting behind the window."
+            },
+            {
+                "from": "human",
+                "value": "How does the dog appear to feel as it looks out the window?"
+            },
+            {
+                "from": "gpt",
+                "value": "As the dog stares out the window, it appears to feel longingly, perhaps suggesting a desire to be outside or interacting with someone or something that has caught its attention."
+            },
+            {
+                "from": "human",
+                "value": "Can you describe the dog's fur?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dog has shaggy, fuzzy, and furry brown fur, which makes it look cute and cuddly."
+            }
+        ]
+    },
+    {
+        "id": "000000398214",
+        "image": "coco/train2017/000000398214.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "What type of sign and traffic device can be seen in the image?\n<image>"
+            },
+            {
+                "from": "gpt",
+                "value": "In the image, there is a street sign and a traffic light above a city road."
+            },
+            {
+                "from": "human",
+                "value": "How many traffic lights are visible in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "There are a total of six traffic lights visible in the image."
+            },
+            {
+                "from": "human",
+                "value": "What is the current color of the traffic lights in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "All the traffic lights in the image are showing the color red at the same time."
+            },
+            {
+                "from": "human",
+                "value": "What kind of setting is the image taken in?"
+            },
+            {
+                "from": "gpt",
+                "value": "The image is taken in a big city setting with a city street, an overpass, and buildings in the distance."
+            },
+            {
+                "from": "human",
+                "value": "Are there any cars visible in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, there are cars visible on the city street in the image."
+            }
+        ]
+    },
+    {
+        "id": "000000520873",
+        "image": "coco/train2017/000000520873.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat is the girl eating in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The girl in the image is eating a dessert, which appears to be a graham cracker treat or a cookie sandwich."
+            },
+            {
+                "from": "human",
+                "value": "Describe the girl's hair color and clothing."
+            },
+            {
+                "from": "gpt",
+                "value": "The girl has blonde hair, and she is wearing a pink shirt."
+            },
+            {
+                "from": "human",
+                "value": "What color is the plate that the dessert is on?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dessert is on a green plate."
+            },
+            {
+                "from": "human",
+                "value": "Is the girl looking at the camera or focusing on her dessert?"
+            },
+            {
+                "from": "gpt",
+                "value": "The girl is looking up at the camera while taking a bite of her dessert."
+            },
+            {
+                "from": "human",
+                "value": "Where is the girl eating her dessert?"
+            },
+            {
+                "from": "gpt",
+                "value": "The girl is eating her dessert at the table."
+            }
+        ]
+    },
+    {
+        "id": "000000575173",
+        "image": "coco/train2017/000000575173.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat type of aircraft is shown in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The image shows a large passenger jet belonging to China Airlines."
+            },
+            {
+                "from": "human",
+                "value": "Is the airplane in the air or on the ground?"
+            },
+            {
+                "from": "gpt",
+                "value": "The airplane is on the ground, as it is seen taxiing down the runway next to a body of water."
+            },
+            {
+                "from": "human",
+                "value": "What is the location of the harbor or body of water in relation to the airplane?"
+            },
+            {
+                "from": "gpt",
+                "value": "The body of water is located right next to the runway where the airplane is taxiing."
+            },
+            {
+                "from": "human",
+                "value": "What type of landscape is visible around the airplane?"
+            },
+            {
+                "from": "gpt",
+                "value": "The landscape visible around the airplane consists of a runway and a large body of water or lake located next to it."
+            }
+        ]
+    },
+    {
+        "id": "000000087286",
+        "image": "coco/train2017/000000087286.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "What is hanging from the traffic light pole?\n<image>"
+            },
+            {
+                "from": "gpt",
+                "value": "A green street sign is hanging from the traffic light pole."
+            },
+            {
+                "from": "human",
+                "value": "How many stoplights are on the light post?"
+            },
+            {
+                "from": "gpt",
+                "value": "There are two stoplights on the light post."
+            },
+            {
+                "from": "human",
+                "value": "What is the background of the image where the street sign is situated?"
+            },
+            {
+                "from": "gpt",
+                "value": "The street sign on the pole is set against a backdrop of a daytime sky."
+            },
+            {
+                "from": "human",
+                "value": "What can you infer about the location of the street sign?"
+            },
+            {
+                "from": "gpt",
+                "value": "The location of the street sign in the picture is an urban or suburban setting, likely at an intersection. The presence of the traffic light pole and stoplights suggests that the street sign is meant to guide motorists and pedestrians in navigating the area. The daytime sky in the background indicates that the photo was captured during daylight hours, which can provide better visibility for those trying to read the street sign."
+            }
+        ]
+    },
+    {
+        "id": "000000032286",
+        "image": "coco/train2017/000000032286.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nHow many chocolate-covered doughnuts are there in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "There are seven chocolate-covered doughnuts in the image."
+            },
+            {
+                "from": "human",
+                "value": "What is the color of the frosting on the doughnuts?"
+            },
+            {
+                "from": "gpt",
+                "value": "The frosting on the doughnuts is chocolate-colored."
+            },
+            {
+                "from": "human",
+                "value": "Where are the doughnuts placed?"
+            },
+            {
+                "from": "gpt",
+                "value": "The doughnuts are placed in a white box, which is sitting on top of a counter."
+            },
+            {
+                "from": "human",
+                "value": "What is the arrangement of the doughnuts?"
+            },
+            {
+                "from": "gpt",
+                "value": "The doughnuts are sitting together on a tray inside the white box."
+            },
+            {
+                "from": "human",
+                "value": "What type of counter is the box of doughnuts placed on?"
+            },
+            {
+                "from": "gpt",
+                "value": "Based on the image, it is not possible to definitively determine the type of counter the box of doughnuts is placed on, as the focus is on the doughnuts themselves. The counter could be in a bakery, a supermarket, a cafe, or any other location where doughnuts are being sold or displayed."
+            }
+        ]
+    },
+    {
+        "id": "000000175217",
+        "image": "coco/train2017/000000175217.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "What is the color of the sink and vanity in the bathroom?\n<image>"
+            },
+            {
+                "from": "gpt",
+                "value": "The sink and vanity in the bathroom are beige in color."
+            },
+            {
+                "from": "human",
+                "value": "What is the color of the toilet in the bathroom?"
+            },
+            {
+                "from": "gpt",
+                "value": "The toilet in the bathroom is white."
+            },
+            {
+                "from": "human",
+                "value": "Is there a painting hanging on the wall in the bathroom?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, there is a painting hanging on the wall in the bathroom."
+            },
+            {
+                "from": "human",
+                "value": "What type of fixtures or counters are used in the bathroom?"
+            },
+            {
+                "from": "gpt",
+                "value": "Marble fixtures or counters are used in the bathroom."
+            },
+            {
+                "from": "human",
+                "value": "In general, how is the bathroom decorated?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bathroom is well-decorated with artwork hanging on the wall and earth-toned tile and paint. The combination of a beige sink and vanity, white toilet, and marble counters or fixtures creates an elegant and inviting atmosphere in the bathroom. The presence of a painting on the wall adds a personal touch and contributes to the overall aesthetic of the space."
+            }
+        ]
+    },
+    {
+        "id": "000000230238",
+        "image": "coco/train2017/000000230238.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat is the main color of the vase in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The main color of the vase in the image is blue."
+            },
+            {
+                "from": "human",
+                "value": "Where is the vase located?"
+            },
+            {
+                "from": "gpt",
+                "value": "The vase is located in a museum, placed on a pedestal on display."
+            },
+            {
+                "from": "human",
+                "value": "What kind of design is on the vase?"
+            },
+            {
+                "from": "gpt",
+                "value": "The vase features blue flowery drawings, which add to its decorative and artistic appeal."
+            },
+            {
+                "from": "human",
+                "value": "Is there a person visible in the background of the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, there is a person visible in the background of the image near the large vase."
+            },
+            {
+                "from": "human",
+                "value": "How is the vase displayed in terms of lighting and background?"
+            },
+            {
+                "from": "gpt",
+                "value": "The vase is displayed with a dark background, which helps highlight its blue and white colors and intricate design. The other windows visible in the image might suggest a well-lit environment intended to emphasize the overall showcase setup, making the vase stand out as an important exhibit piece."
+            }
+        ]
+    },
+    {
+        "id": "000000392166",
+        "image": "coco/train2017/000000392166.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nIs the man on the skateboard holding a dog?"
+            },
+            {
+                "from": "gpt",
+                "value": "Yes, the man on the skateboard is holding a dog in his arm."
+            },
+            {
+                "from": "human",
+                "value": "What color is the dog being held by the man?"
+            },
+            {
+                "from": "gpt",
+                "value": "The dog being held by the man is brown."
+            },
+            {
+                "from": "human",
+                "value": "Is the man riding the skateboard with both hands out or with one hand holding the dog?"
+            },
+            {
+                "from": "gpt",
+                "value": "The man is riding the skateboard with one hand holding the dog."
+            },
+            {
+                "from": "human",
+                "value": "How skilled does the man appear to be in skateboarding while holding the dog?"
+            }]
+    }
 ]
