@@ -484,9 +484,11 @@ def main():
                     aspect_ratio_ids = batch["aspect_ratio_ids"]
                     aspect_ratio_mask = batch["aspect_ratio_mask"]
                     images = images.reshape(len(input_ids), 1, images.size(-4), images.size(-3), images.size(-2), images.size(-1))
+                   
                     image_sizes = None
 
                 else:
+                    
                     image_sizes = None
                     aspect_ratio_ids = None
                     aspect_ratio_mask = None
@@ -494,6 +496,7 @@ def main():
                 labels_tmp = input_ids.clone()
                 attention_mask_tmp = attention_mask.clone()
                 attention_mask_tmp[attention_mask_tmp==0] = 1
+
 
                 reward_scores = model(
                     images ,
@@ -559,7 +562,6 @@ def main():
                 image_sizes = batch["image_sizes"]
                 image_sizes = image_sizes.reshape(len(input_ids), 2)
                 images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
-                
                 aspect_ratio_ids = None
                 aspect_ratio_mask = None
 

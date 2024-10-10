@@ -246,7 +246,7 @@ class ViRewardModel(nn.Module):
                         aspect_ratio_ids=aspect_ratio_ids,
                         aspect_ratio_mask=aspect_ratio_mask,
                         attention_mask=attention_mask,
-                        labels=input_labels,
+                        labels=None,
                         output_hidden_states=output_hidden_states,
                         return_dict=return_dict)
             hidden_states = transformer_outputs.hidden_states[-1]
@@ -321,7 +321,7 @@ class ViRewardModel(nn.Module):
                         aspect_ratio_ids=aspect_ratio_ids,
                         aspect_ratio_mask=aspect_ratio_mask,
                         attention_mask=attention_mask,
-                        labels=input_labels,
+                        labels=None,
                         output_hidden_states=output_hidden_states,
                         return_dict=return_dict)
             hidden_states = transformer_outputs.hidden_states[-1]
