@@ -460,6 +460,7 @@ def main():
             labels = batch["labels"]
 
             if args.model_architecture=="default":
+                # from utils import pdb;pdb.set_trace()
                 loss = model(
                     images,
                     input_ids,
@@ -504,7 +505,7 @@ def main():
 
         model.tput_timer.update_epoch_count()
     
-        evaluation(model, eval_dataloader)
+        # evaluation(model, eval_dataloader)
 
         if args.global_rank == 0:
             save_hf_format(model, tokenizer, args, f"epoch-{epoch}")
