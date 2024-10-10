@@ -318,6 +318,7 @@ class DeepSpeedViLModel(nn.Module):
                 img_feature = img_feature.last_hidden_state
         else:
             # do not update vis encoder
+            from utils import pdb;pdb.set_trace()
             with torch.no_grad():
                 img_feature = self.vis_encoder(img)
                 if not isinstance(img_feature, torch.Tensor):

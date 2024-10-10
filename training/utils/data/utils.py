@@ -140,7 +140,7 @@ class DataCollatorPadToMaxLen:
                         max_image_number = image_data[-1].size(1)
                         multi_tag = True
                 else:
-                    image_data.append(default_collate(single_data['image'][0]))
+                    image_data.append(default_collate(single_data['image'][0]).unsqueeze(0))
                     image_num.append(single_data['image_num'])
         
         if multi_tag:  #for llama-3.2-vision
