@@ -12,6 +12,8 @@ defalut_roles = ["\n\n### Question:\n", "\n\n### Answer:\n",""]
 llama2_roles = ["[INST] "," [/INST] "," </s><s>"]
 llama3_roles = ["<|start_header_id|>user<|end_header_id|>\n\n","<|start_header_id|>assistant<|end_header_id|>\n\n","<|eot_id|>"]
 vicuna_roles = ["USER: ","ASSISTANT: ","</s>"]
+mistral_roles = ["[INST]","[/INST]"," </s>"]
+llama3_2_roles = ["<|start_header_id|>user<|end_header_id|>\n\n","<|start_header_id|>assistant<|end_header_id|>\n\n","<|eot_id|>"]
 
 if template == "defalut":
     roles = defalut_roles
@@ -21,6 +23,10 @@ elif template == "llama_3":
     roles = llama3_roles
 elif template == "vicuna":
     roles = vicuna_roles
+elif template == "mistral":
+    roles = mistral_roles
+elif template == "llama_3.2":
+    roles = llama3_2_roles
 
 all_data = []
 
@@ -33,7 +39,7 @@ for line in source_data:
     if len(line["conversations"]) > 2:
         for index, conv in enumerate(line["conversations"][:-1]):
             token_of_end = ""
-            if index%2 == 0 and template == "llama_3" and index != (len(line["conversations"])-2):
+            if index%2 == 0 and (template == "llama_3" or template == "llama_3.2") and index != (len(line["conversations"])-2):
                 token_of_end = roles[2]
             if index%2 == 1:
                 token_of_end = roles[2]
