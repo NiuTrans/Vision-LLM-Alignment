@@ -5,6 +5,8 @@ ROOT=${CUR_DIR}
 
 export PYTHONPATH=${ROOT}:${PYTHONPATH}
 
+
+# run_ppo_training.sh
 VISION_MODEL=None
 LLM=None
 

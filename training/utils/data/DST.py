@@ -46,7 +46,8 @@ VICUNA_ASSISTANT_TOKEN = " ASSISTANT: "
 # llava
 SYSTEM_MESSAGE_LLAVA = f"A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
 LLAVA_HUMAN_QUESTION_PRETOKEN = "USER: "
-LLAVA_ASSISTANT_TOKEN = " ASSISTANT:"
+LLAVA_HUMAN_QUESTION_PRETOKEN_END = "</s>"
+LLAVA_ASSISTANT_TOKEN = " ASSISTANT: "
 
 # llama-3.2-vision
 SYSTEM_MESSAGE_LLAMA_3_2 = ""
@@ -96,7 +97,7 @@ VICUNA_TEMPLATE = {
 
 LLAVA_TEMPLATE = {
     "description": "Template for the LlaVA models.",
-    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_QUESTION_TOKEN}</s>{LLAVA_ASSISTANT_TOKEN}''',
+    "prompt_qa_with_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_IMAGE_TOKEN}\n{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
     "prompt_qa_without_image": f'''{LLAVA_HUMAN_QUESTION_PRETOKEN}{DEFAULT_QUESTION_TOKEN}{LLAVA_ASSISTANT_TOKEN}''',
 }
 

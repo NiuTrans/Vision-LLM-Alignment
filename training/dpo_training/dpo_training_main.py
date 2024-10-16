@@ -225,7 +225,7 @@ def parse_args():
     parser.add_argument('--template',
                         type=str,
                         choices=["default", "llama_2", "llama_3", "llama_3", 
-                                "vicuna", "llava", "llava-next", "llama-3.2-vision"],)
+                                "vicuna", "llava", "llava_next", "llama-3.2-vision"],)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
@@ -263,11 +263,12 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer_origin = AutoTokenizer.from_pretrained(
-        args.lm_model_name_or_path,
-        fast_tokenizer = True
-    )
-    tokenizer_origin.padding_side = 'left'
+    if args.model_architecture == 'default':
+        tokenizer_origin = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
+                                                fast_tokenizer=True)
+        tokenizer_origin.padding_side = 'left'
+    else:
+        tokenizer_origin = None
 
     ds_config = get_train_ds_config(args, offload=False, stage=2)
 
@@ -400,6 +401,12 @@ def main():
         for step, batch in enumerate(tqdm(train_dataloader)):
             # batch--> y1 of sample 1; y2 of sample 1;...; yn of sample 1; y1 of sample 2; ...
             batch = to_device(batch, device)
+            chosen_idx = [i for i in range(len(batch["input_ids"])) if (batch['input_ids'][i][0] != -1)]
+
+            batch["image"] = [batch["image"][i] for i in chosen_idx]
+            batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
+            batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
+            batch["labels"] = [batch["labels"][i] for i in chosen_idx]
 
             input_ids = torch.stack(batch["input_ids"])
             attention_mask = torch.stack(batch["attention_mask"])
@@ -425,6 +432,10 @@ def main():
                 aspect_ratio_ids = None
                 aspect_ratio_mask = None
 
+            labels_tmp = input_ids.clone()
+            attention_mask_tmp = attention_mask.clone()
+            attention_mask_tmp[attention_mask_tmp==0] = 1
+
             if args.model_architecture == 'default':
                 outputs_logits = model(images,
                     input_ids,
@@ -439,14 +450,14 @@ def main():
                         attention_mask=attention_mask,
                         input_labels=labels,
                         image_num=batch["image_num"])[1]
-            elif args.model_architecture in ["llava", "llava-next"]:
+            elif args.model_architecture in ["llava", "llava_next"]:
                 if image_sizes is not None:
                     outputs = model(
                         input_ids=input_ids,
                         image_sizes = image_sizes,
                         pixel_values = images,
-                        attention_mask=attention_mask,
-                        labels=labels,
+                        attention_mask=attention_mask_tmp,
+                        labels=labels_tmp,
                         output_hidden_states=True)
                     outputs_logits = outputs.logits_drop_image
                     
@@ -455,16 +466,16 @@ def main():
                         input_ids=input_ids,
                         image_sizes = image_sizes,
                         pixel_values = images,
-                        attention_mask=attention_mask,
-                        labels=labels,
+                        attention_mask=attention_mask_tmp,
+                        labels=labels_tmp,
                         output_hidden_states=True)
                         ref_outputs_logits = ref_outputs.logits_drop_image
                 else:
                     outputs = model(
                         input_ids=input_ids,
                         pixel_values = images,
-                        attention_mask=attention_mask,
-                        labels=labels,
+                        attention_mask=attention_mask_tmp,
+                        labels=labels_tmp,
                         output_hidden_states=True)
                     outputs_logits = outputs.logits_drop_image
                     
@@ -472,8 +483,8 @@ def main():
                         ref_outputs = ref_model(
                         input_ids=input_ids,
                         pixel_values = images,
-                        attention_mask=attention_mask,
-                        labels=labels,
+                        attention_mask=attention_mask_tmp,
+                        labels=labels_tmp,
                         output_hidden_states=True)
                         ref_outputs_logits = ref_outputs.logits_drop_image
             elif args.model_architecture in ["llama-3.2-vision"]:

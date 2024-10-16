@@ -261,11 +261,12 @@ def main():
     set_random_seed(args.seed)
 
     torch.distributed.barrier()
-    tokenizer_origin = AutoTokenizer.from_pretrained(
-        args.lm_model_name_or_path,
-        fast_tokenizer = True
-    )
-    tokenizer_origin.padding_side = 'left'
+    if args.model_architecture == 'default':
+        tokenizer_origin = AutoTokenizer.from_pretrained(args.lm_model_name_or_path,
+                                                fast_tokenizer=True)
+        tokenizer_origin.padding_side = 'left'
+    else:
+        tokenizer_origin = None
 
     ds_config = get_train_ds_config(args, offload=False, stage=2)
 
@@ -403,7 +404,6 @@ def main():
             batch["input_ids"] = [batch["input_ids"][i] for i in chosen_idx]
             batch["attention_mask"] = [batch["attention_mask"][i] for i in chosen_idx]
             batch["labels"] = [batch["labels"][i] for i in chosen_idx]
-            # import pdb;pdb.set_trace()
             
             input_ids = torch.stack(batch["input_ids"])
             attention_mask = torch.stack(batch["attention_mask"])
