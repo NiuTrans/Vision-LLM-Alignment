@@ -235,7 +235,7 @@ def parse_args():
     parser.add_argument('--template',
                         type=str,
                         choices=['default', 'llama_2', 'llama_3', 'llama_3', 'vicuna', 
-                        'llama-3.2-vision'],)
+                        'llava', 'llava_next', 'llama-3.2-vision'],)
     parser.add_argument(
         '--eval_step',
         type=int,
@@ -422,6 +422,19 @@ def main():
                         labels=labels,
                         return_dict=False
                     )[0]
+                elif args.model_architecture=="llava_next":
+                    image_sizes = batch["image_sizes"]
+                    image_sizes = image_sizes.reshape(len(input_ids), 2)
+                    images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+
+                    loss = model(
+                        input_ids=input_ids,
+                        pixel_values=images,
+                        image_sizes=image_sizes,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                        return_dict=False
+                    )[0]
                 elif args.model_architecture=="llama-3.2-vision":
                     aspect_ratio_ids = batch["aspect_ratio_ids"]
                     aspect_ratio_mask = batch["aspect_ratio_mask"]
@@ -458,9 +471,8 @@ def main():
             input_ids = batch["input_ids"]
             attention_mask = batch["attention_mask"]
             labels = batch["labels"]
-
+            
             if args.model_architecture=="default":
-                # from utils import pdb;pdb.set_trace()
                 loss = model(
                     images,
                     input_ids,
@@ -473,6 +485,18 @@ def main():
                 loss = model(
                     input_ids=input_ids,
                     pixel_values=images,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    return_dict=False
+                )[0]
+            elif args.model_architecture=="llava_next":
+                image_sizes = batch["image_sizes"]
+                image_sizes = image_sizes.reshape(len(input_ids), 2)
+                images = images.reshape(len(input_ids), 5, images.size(-3), images.size(-2), images.size(-1))
+                loss = model(
+                    input_ids=input_ids,
+                    pixel_values=images,
+                    image_sizes=image_sizes,
                     attention_mask=attention_mask,
                     labels=labels,
                     return_dict=False

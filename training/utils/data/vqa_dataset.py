@@ -148,8 +148,9 @@ class VQADataset(Dataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=512,
+            max_length=1024,
         )
+        
         if res["input_ids"][-1] != self.tokenizer.eos_token_id and self.add_eos:
             res["input_ids"].append(self.tokenizer.eos_token_id)
             res["attention_mask"].append(1)
@@ -159,6 +160,7 @@ class VQADataset(Dataset):
         if self.ignore_instruction:
             instruction_token = self.tokenizer(
                 text["instruction"], return_tensors=None, padding="do_not_pad")
+            
             if instruction_token["input_ids"][-1] == self.tokenizer.eos_token_id:
                 labels = [DST.DEFAULT_LABEL_PADDING_NUM] * (len(instruction_token["input_ids"])-1) + labels[len(instruction_token["input_ids"])-1:]
             else:

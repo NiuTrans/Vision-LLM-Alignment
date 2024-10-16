@@ -85,12 +85,17 @@ class LlavaDataset(VQADataset):
                         aspect_ratio_mask = torch.cat(all_aspect_ratio_mask, dim=1)
                         multi_image_tag = len(all_image_paths)
                             
-                    elif self.template == 'llama-3.2-vision':
+                    elif self.template == "llama-3.2-vision":
                         image, aspect_items = self.process_image(ann,
                                         data_debug_path=self.data_debug_path,
                                         data_debug_counter=self.data_debug_counter)
                         aspect_ratio_ids = aspect_items['aspect_ratio_ids']
                         aspect_ratio_mask = aspect_items['aspect_ratio_mask']
+
+                    elif self.template == "llava_next":
+                        image, image_sizes = self.process_image(ann,
+                                    data_debug_path=self.data_debug_path,
+                                    data_debug_counter=self.data_debug_counter)
 
                     else:
                         image = self.process_image(
@@ -173,6 +178,8 @@ class LlavaDataset(VQADataset):
             if self.template == "llama-3.2-vision":
                 res.update(aspect_ratio_ids=aspect_ratio_ids)
                 res.update(aspect_ratio_mask=aspect_ratio_mask)
+            elif self.template == "llava_next":
+                res.update(image_sizes=image_sizes)
 
             res_list_all.append(res)
 
@@ -202,6 +209,7 @@ class LlavaComparsionDataset(VQADataset):
                 image, image_sizes = self.process_image(ann,
                                     data_debug_path=self.data_debug_path,
                                     data_debug_counter=self.data_debug_counter)
+                
             elif self.template == 'llama-3.2-vision':
                 # aspect_items: ['aspect_ratio_ids', 'aspect_ratio_mask', 'num_tiles']
                 # example: 'aspect_ratio_ids': array([[4]]), 'aspect_ratio_mask': array([[[1, 1, 1, 1]]]), 'num_tiles': [[4]]
@@ -564,7 +572,7 @@ class LlavaPredictDataset(VQADataset):
             return_tensors=None,
             padding="do_not_pad",
             truncation=True,
-            max_length=512,
+            max_length=768,
         )
         if (res["input_ids"][-1] == self.tokenizer.eos_token_id) and (not self.add_eos):
             res["input_ids"] = res["input_ids"][0:-1]

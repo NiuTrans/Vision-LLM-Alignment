@@ -310,7 +310,7 @@ def main():
     generation_kwargs={
         "topk": args.topk,
         "topp": args.topp,
-        "do_sample": args.do_sample,
+        "do_sample": (args.temperature>0.0),
         "max_new_tokens": args.max_new_tokens,
         "num_return_sequences": args.num_return_sequences,
         "temperature": args.temperature

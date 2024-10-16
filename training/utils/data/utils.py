@@ -114,7 +114,10 @@ class DataCollatorPadToMaxLen:
 
         for single_data in data:
             if single_data['image'] is None:
-                if 'aspect_ratio_ids' in single_data.keys():
+                if 'image_sizes' in single_data.keys():
+                    image_data.append(torch.zeros(1, 5, 3, self.image_size['height'],self.image_size['width']))
+                    image_sizes.append(torch.LongTensor([123, 123]))
+                elif 'aspect_ratio_ids' in single_data.keys():
                     image_data.append(torch.zeros(1, 1, 4, 3, self.image_size['height'],self.image_size['width']))
                     aspect_ratio_ids.append(torch.LongTensor([[4]]))
                     aspect_ratio_mask.append(torch.LongTensor([[[1,0,0,0]]]))
@@ -135,10 +138,19 @@ class DataCollatorPadToMaxLen:
                     
                     image_num.append(single_data['image_num'])
                     # check multiple images?
-                    
-                    if image_data[-1].size(1) > max_image_number:
-                        max_image_number = image_data[-1].size(1)
-                        multi_tag = True
+                elif 'image_sizes' in single_data.keys():
+                    if len(single_data['image_sizes']) != 0:
+                        image_sizes.append(default_collate(single_data['image_sizes']))
+                        if default_collate(single_data['image']).size(1) == 5:
+                            image_data.append(default_collate(single_data['image']))
+                        else:
+                            tmp_image = default_collate(single_data['image'])
+                            current_dim_size = tmp_image.size(1)
+                            padding_size = 5 - current_dim_size
+                            tmp_image = torch.nn.functional.pad(tmp_image, (0, 0, 0, 0, 0, 0, 0, padding_size), "constant", 0)
+                            image_data.append(tmp_image)
+                    else:
+                        image_data.append(default_collate(single_data['image']))
                 else:
                     image_data.append(default_collate(single_data['image'][0]).unsqueeze(0))
                     image_num.append(single_data['image_num'])
@@ -174,6 +186,11 @@ class DataCollatorPadToMaxLen:
             batch['aspect_ratio_ids'] = aspect_ratio_ids
             batch['aspect_ratio_mask'] = aspect_ratio_mask
 
+        elif 'image_sizes' in data[0].keys():
+            image_sizes = torch.concat(image_sizes, dim=0)
+            
+            batch['image_sizes'] = image_sizes
+
         image = torch.cat(image_data, dim=0)
 
         batch['input_ids'] = input_ids
@@ -192,7 +209,6 @@ class DataCollatorPadToMaxLenForRewardModel:
 
     def __call__(self, data):
         batch = {}
-        # data = data[0]
         data = [data[i][j] for i in range(len(data)) for j in range(len(data[0]))]
 
         input_ids = pad_sequence([default_collate(f['input_ids']) for f in data], 
