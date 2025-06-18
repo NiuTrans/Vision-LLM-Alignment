@@ -123,14 +123,14 @@ We thank the following papers:
 
 Please cite our paper if you find the repo helpful in your work:
 ```bash
-@misc{wang2024rovrmrobustvisualreward,
-      title={RoVRM: A Robust Visual Reward Model Optimized via Auxiliary Textual Preference Data}, 
-      author={Chenglong Wang and Yang Gan and Yifu Huo and Yongyu Mu and Murun Yang and Qiaozhi He and Tong Xiao and Chunliang Zhang and Tongran Liu and Quan Du and Di Yang and Jingbo Zhu},
-      year={2024},
-      eprint={2408.12109},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2408.12109}, 
+@inproceedings{wang2025rovrm,
+  title={Rovrm: A robust visual reward model optimized via auxiliary textual preference data},
+  author={Wang, Chenglong and Gan, Yang and Huo, Yifu and Mu, Yongyu and Yang, Murun and He, Qiaozhi and Xiao, Tong and Zhang, Chunliang and Liu, Tongran and Zhu, Jingbo},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={39},
+  number={24},
+  pages={25336--25344},
+  year={2025}
 }
 ```
 
